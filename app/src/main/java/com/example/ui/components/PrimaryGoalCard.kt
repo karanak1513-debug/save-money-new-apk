@@ -19,7 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.Goal
 import com.example.data.model.PacingInfo
-import com.example.ui.theme.MonospaceBody
 import com.example.ui.theme.MonospaceDisplay
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
@@ -56,14 +55,14 @@ fun PrimaryGoalCard(
   onSwitchGoalClick: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
-  val title = goal?.title ?: "Reserve Target 2026"
-  val savedAmount = goal?.savedAmount ?: 60000.0
-  val targetAmount = goal?.targetAmount ?: 150000.0
-  val progress = goal?.progressFraction ?: (60000f / 150000f)
+  val title = goal?.title ?: "No Goal Created"
+  val savedAmount = goal?.savedAmount ?: 0.0
+  val targetAmount = goal?.targetAmount ?: 0.0
+  val progress = goal?.progressFraction ?: 0f
 
   val animatedProgress by animateFloatAsState(
     targetValue = progress,
-    animationSpec = tween(durationMillis = 800),
+    animationSpec = tween(durationMillis = 600),
     label = "progress_bar_anim"
   )
 
@@ -71,9 +70,8 @@ fun PrimaryGoalCard(
     modifier = modifier
       .fillMaxWidth()
       .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-      // Frosted white border, flat surface (border with subtle translucent white/gray)
       .border(1.5.dp, SwissBorder, RoundedCornerShape(12.dp))
-      .padding(20.dp)
+      .padding(18.dp)
       .testTag("primary_goal_card")
   ) {
     // Top Row: Goal Title & Switcher
@@ -84,19 +82,21 @@ fun PrimaryGoalCard(
     ) {
       Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.weight(1f)
       ) {
         Box(
           modifier = Modifier
             .size(8.dp)
-            .background(SwissCrimson, CircleShape)
+            .background(if (pacingInfo.isExpired) SwissDark else SwissCrimson, CircleShape)
         )
         Text(
           text = title,
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
-          letterSpacing = (-0.2).sp
+          letterSpacing = (-0.2).sp,
+          maxLines = 1
         )
       }
 
@@ -108,10 +108,15 @@ fun PrimaryGoalCard(
           .testTag("switch_goal_button")
       ) {
         Text(
-          text = "${pacingInfo.daysRemaining}d left",
+          text = when {
+            goal == null -> "Set Goal"
+            pacingInfo.isExpired -> "Expired"
+            pacingInfo.isCompleted -> "Achieved"
+            else -> "${pacingInfo.daysRemaining}d left"
+          },
           style = MaterialTheme.typography.labelSmall,
-          color = SwissTextSecondary,
-          fontWeight = FontWeight.Medium
+          color = if (pacingInfo.isExpired) SwissCrimson else SwissTextSecondary,
+          fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
@@ -123,9 +128,9 @@ fun PrimaryGoalCard(
       }
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(14.dp))
 
-    // Total Saved vs Target: "₹60,000 / ₹1,50,000" in bold monospaced typography
+    // Total Saved vs Target: Monospaced typography
     Column {
       Text(
         text = "TOTAL SAVED / TARGET",
@@ -136,20 +141,15 @@ fun PrimaryGoalCard(
         fontSize = 10.sp
       )
       Spacer(modifier = Modifier.height(4.dp))
-      Row(
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        Text(
-          text = "${CurrencyFormatter.formatRupee(savedAmount)} / ${CurrencyFormatter.formatRupee(targetAmount)}",
-          style = MonospaceDisplay,
-          color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 22.sp
-        )
-      }
+      Text(
+        text = "${CurrencyFormatter.formatRupee(savedAmount)} / ${CurrencyFormatter.formatRupee(targetAmount)}",
+        style = MonospaceDisplay,
+        color = MaterialTheme.colorScheme.onSurface,
+        fontSize = 20.sp
+      )
     }
 
-    Spacer(modifier = Modifier.height(14.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     // 4px flat progress line (Crimson Red fill on Light Gray track)
     Box(
@@ -162,20 +162,20 @@ fun PrimaryGoalCard(
         modifier = Modifier
           .fillMaxWidth(animatedProgress)
           .height(4.dp)
-          .background(SwissCrimson, RoundedCornerShape(2.dp))
+          .background(if (pacingInfo.isCompleted) Color(0xFF10B981) else SwissCrimson, RoundedCornerShape(2.dp))
           .testTag("goal_progress_indicator")
       )
     }
 
-    Spacer(modifier = Modifier.height(18.dp))
+    Spacer(modifier = Modifier.height(16.dp))
 
-    // "Suggested Pace" Hero Badge (Highlighted in subtle red-tint container)
+    // Suggested Pace Hero Badge
     Box(
       modifier = Modifier
         .fillMaxWidth()
         .background(SwissCrimsonLight, RoundedCornerShape(8.dp))
         .border(1.dp, SwissCrimsonBorder, RoundedCornerShape(8.dp))
-        .padding(horizontal = 14.dp, vertical = 12.dp)
+        .padding(horizontal = 14.dp, vertical = 10.dp)
         .testTag("suggested_pace_badge")
     ) {
       Row(
@@ -185,11 +185,15 @@ fun PrimaryGoalCard(
         Box(
           modifier = Modifier
             .size(28.dp)
-            .background(SwissCrimson, RoundedCornerShape(6.dp)),
+            .background(if (pacingInfo.isExpired) SwissDark else SwissCrimson, RoundedCornerShape(6.dp)),
           contentAlignment = Alignment.Center
         ) {
           Icon(
-            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+            imageVector = when {
+              pacingInfo.isCompleted -> Icons.Default.CheckCircle
+              pacingInfo.isExpired -> Icons.Default.HourglassBottom
+              else -> Icons.AutoMirrored.Filled.TrendingUp
+            },
             contentDescription = "Pace indicator",
             tint = Color.White,
             modifier = Modifier.size(16.dp)
@@ -198,7 +202,7 @@ fun PrimaryGoalCard(
 
         Column {
           Text(
-            text = "SUGGESTED PACE",
+            text = "DYNAMIC PACING",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = SwissCrimsonDark,
@@ -206,7 +210,13 @@ fun PrimaryGoalCard(
             fontSize = 9.sp
           )
           Text(
-            text = "Save ${CurrencyFormatter.formatRupee(pacingInfo.dailyPace)} Today to hit your goal on schedule",
+            text = when {
+              goal == null -> "Add a savings target to compute daily pace"
+              pacingInfo.isCompleted -> "Target reached! Excellent savings discipline"
+              pacingInfo.isExpired -> "Target deadline has elapsed. Update goal deadline."
+              pacingInfo.dailyPace > 0 -> "Save ${CurrencyFormatter.formatRupee(pacingInfo.dailyPace)} Today to hit your goal on schedule"
+              else -> "Goal on track with zero pending contributions needed"
+            },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = SwissDark
@@ -215,34 +225,41 @@ fun PrimaryGoalCard(
       }
     }
 
-    Spacer(modifier = Modifier.height(14.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // Sub-metrics row: "₹3,150 / week" and "₹13,500 / month"
+    // FIX FOR OVERLAPPING LAYOUT BUG:
+    // Structured 2-column grid layout with clean padding and weight distribution so text never collides!
     Row(
       modifier = Modifier
         .fillMaxWidth()
         .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
         .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
         .padding(horizontal = 14.dp, vertical = 10.dp),
-      horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+      // Column 1: Weekly Pace
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
       ) {
         Text(
-          text = "WEEKLY:",
+          text = "WEEKLY PACE",
           style = MaterialTheme.typography.labelSmall,
           color = SwissTextTertiary,
           fontWeight = FontWeight.Bold,
-          fontSize = 10.sp
+          fontSize = 9.sp,
+          letterSpacing = 0.5.sp
         )
         Text(
-          text = "${CurrencyFormatter.formatRupee(pacingInfo.weeklyPace)} / week",
+          text = when {
+            pacingInfo.isExpired -> "Expired"
+            pacingInfo.isCompleted -> "Done"
+            else -> "${CurrencyFormatter.formatRupee(pacingInfo.weeklyPace)} / wk"
+          },
           style = MonospaceSmall,
           fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.onSurface
+          color = MaterialTheme.colorScheme.onSurface,
+          fontSize = 13.sp
         )
       }
 
@@ -250,26 +267,35 @@ fun PrimaryGoalCard(
       Box(
         modifier = Modifier
           .width(1.dp)
-          .height(14.dp)
+          .height(28.dp)
           .background(Color(0xFFE5E7EB))
       )
 
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+      Spacer(modifier = Modifier.width(14.dp))
+
+      // Column 2: Monthly Pace
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
       ) {
         Text(
-          text = "MONTHLY:",
+          text = "MONTHLY PACE",
           style = MaterialTheme.typography.labelSmall,
           color = SwissTextTertiary,
           fontWeight = FontWeight.Bold,
-          fontSize = 10.sp
+          fontSize = 9.sp,
+          letterSpacing = 0.5.sp
         )
         Text(
-          text = "${CurrencyFormatter.formatRupee(pacingInfo.monthlyPace)} / month",
+          text = when {
+            pacingInfo.isExpired -> "Expired"
+            pacingInfo.isCompleted -> "Done"
+            else -> "${CurrencyFormatter.formatRupee(pacingInfo.monthlyPace)} / mo"
+          },
           style = MonospaceSmall,
           fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.onSurface
+          color = MaterialTheme.colorScheme.onSurface,
+          fontSize = 13.sp
         )
       }
     }

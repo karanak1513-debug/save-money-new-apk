@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -87,8 +86,6 @@ enum class LedgerFilter(val displayName: String) {
   UPI("UPI"),
   CASH("Cash"),
   OTHER("Other"),
-  AUTO("Auto-Captured"),
-  MANUAL("Manual"),
   CREDITS("Credits (+)"),
   DEBITS("Debits (-)")
 }
@@ -104,6 +101,7 @@ fun HistoryLedgerScreen(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+  val today = remember { LocalDate.now() }
   var currentMonth by remember { mutableStateOf(YearMonth.now()) }
   var selectedDayNumber by remember { mutableStateOf<Int?>(null) }
   var activeFilter by remember {
@@ -150,8 +148,6 @@ fun HistoryLedgerScreen(
         LedgerFilter.UPI -> tx.channel == Channel.UPI
         LedgerFilter.CASH -> tx.channel == Channel.CASH
         LedgerFilter.OTHER -> tx.channel == Channel.OTHER
-        LedgerFilter.AUTO -> tx.isAutoCaptured
-        LedgerFilter.MANUAL -> !tx.isAutoCaptured
         LedgerFilter.CREDITS -> tx.amount > 0
         LedgerFilter.DEBITS -> tx.amount < 0
       }
@@ -162,8 +158,7 @@ fun HistoryLedgerScreen(
     modifier = modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.background,
     bottomBar = {
-      // 3. Quick Export Bar:
-      // Minimal text buttons: "Export to CSV" | "Clear Ledger"
+      // Quick Export Bar: "Export to CSV" | "Clear Ledger"
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -240,7 +235,7 @@ fun HistoryLedgerScreen(
         .testTag("history_ledger_scroll"),
       contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-      // Screen Title & Summary
+      // Title
       item {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
           Text(
@@ -261,8 +256,7 @@ fun HistoryLedgerScreen(
         }
       }
 
-      // 1. Top Controls:
-      // Minimal calendar strip (Month switcher with active date highlighted with a Crimson Red dot).
+      // Minimal calendar strip (Month switcher with active date highlighted)
       item {
         Column(
           modifier = Modifier
@@ -350,6 +344,7 @@ fun HistoryLedgerScreen(
               val dayDate = currentMonth.atDay(dayNum)
               val dayOfWeekLabel = dayDate.dayOfWeek.name.take(1)
               val isSelected = selectedDayNumber == dayNum
+              val isTodayDate = (dayDate == today)
               val hasEntries = datesWithEntries.contains(dayNum)
 
               Column(
@@ -357,12 +352,20 @@ fun HistoryLedgerScreen(
                 modifier = Modifier
                   .width(38.dp)
                   .background(
-                    color = if (isSelected) SwissDark else Color.Transparent,
+                    color = when {
+                      isSelected -> SwissDark
+                      isTodayDate -> Color(0xFFF3F4F6)
+                      else -> Color.Transparent
+                    },
                     shape = RoundedCornerShape(8.dp)
                   )
                   .border(
                     width = 1.dp,
-                    color = if (isSelected) SwissDark else SwissBorder,
+                    color = when {
+                      isSelected -> SwissDark
+                      isTodayDate -> SwissCrimson
+                      else -> SwissBorder
+                    },
                     shape = RoundedCornerShape(8.dp)
                   )
                   .clickable {
@@ -387,8 +390,8 @@ fun HistoryLedgerScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Active date highlighted with a Crimson Red dot (#D32F2F)
-                if (hasEntries || isSelected) {
+                // Highlight dot for dates with transactions or today
+                if (hasEntries || isTodayDate || isSelected) {
                   Box(
                     modifier = Modifier
                       .size(5.dp)
@@ -403,7 +406,7 @@ fun HistoryLedgerScreen(
         }
       }
 
-      // Filter segmented control: [All] [UPI] [Cash] [Other] [Auto-Captured] [Manual] [Credits (+)] [Debits (-)]
+      // Filter Segmented Control: [All] [UPI] [Cash] [Other] [Credits (+)] [Debits (-)]
       item {
         Spacer(modifier = Modifier.height(14.dp))
         LazyRow(
@@ -440,14 +443,13 @@ fun HistoryLedgerScreen(
         Spacer(modifier = Modifier.height(14.dp))
       }
 
-      // 2. Transaction History Feed:
-      // Clean tabular rows separated by 1px subtle gray borders (#E5E7EB).
+      // Transaction History Feed
       if (filteredTransactions.isEmpty()) {
         item {
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 16.dp, vertical = 40.dp)
+              .padding(horizontal = 16.dp, vertical = 32.dp)
               .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
               .border(1.dp, SwissBorder, RoundedCornerShape(12.dp))
               .padding(24.dp),
@@ -455,7 +457,7 @@ fun HistoryLedgerScreen(
           ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
               Text(
-                text = "NO ENTRIES FOUND",
+                text = "NO TRANSACTIONS YET",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = SwissTextTertiary,
@@ -463,7 +465,7 @@ fun HistoryLedgerScreen(
               )
               Spacer(modifier = Modifier.height(6.dp))
               Text(
-                text = "No manual or auto-captured records match the current filter",
+                text = "No records match the current filter. Add your first entry below.",
                 style = MaterialTheme.typography.bodySmall,
                 color = SwissTextSecondary
               )
@@ -501,13 +503,12 @@ fun HistoryLedgerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                // Left: Date tag, Channel badge, Note, and Auto indicator
+                // Left: Date tag, Channel badge, Note
                 Row(
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.spacedBy(8.dp),
                   modifier = Modifier.weight(1f)
                 ) {
-                  // Date Tag (e.g., "05 Oct")
                   Text(
                     text = dateTag,
                     style = MonospaceSmall,
@@ -516,7 +517,6 @@ fun HistoryLedgerScreen(
                     fontSize = 11.sp
                   )
 
-                  // Channel badge (UPI/Cash/Other)
                   Box(
                     modifier = Modifier
                       .background(
@@ -547,29 +547,6 @@ fun HistoryLedgerScreen(
                     )
                   }
 
-                  // If auto-captured, show small UPI app tag (GPAY/PHONEPE/PAYTM)
-                  if (tx.isAutoCaptured && !tx.upiAppName.isNullOrBlank()) {
-                    Box(
-                      modifier = Modifier
-                        .background(Color(0xFFE8F0FE), RoundedCornerShape(3.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                      Text(
-                        text = when (tx.upiAppName) {
-                          "Google Pay" -> "GPAY"
-                          "PhonePe" -> "PHONEPE"
-                          "Paytm" -> "PAYTM"
-                          else -> "AUTO"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = SwissDark,
-                        fontSize = 7.sp
-                      )
-                    }
-                  }
-
-                  // Note text
                   Text(
                     text = tx.note,
                     style = MaterialTheme.typography.bodyMedium,
@@ -579,7 +556,7 @@ fun HistoryLedgerScreen(
                   )
                 }
 
-                // Right: Amount formatted in monospace (+₹500 in dark gray, -₹200 in crimson red)
+                // Right: Amount & Delete icon
                 Row(
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -606,7 +583,7 @@ fun HistoryLedgerScreen(
                 }
               }
 
-              // 1px subtle gray border separator (#E5E7EB)
+              // 1px border separator
               if (index < filteredTransactions.lastIndex) {
                 Box(
                   modifier = Modifier

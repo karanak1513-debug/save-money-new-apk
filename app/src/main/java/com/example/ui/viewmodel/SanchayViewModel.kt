@@ -11,17 +11,13 @@ import com.example.data.model.DailyBarData
 import com.example.data.model.Goal
 import com.example.data.model.PacingInfo
 import com.example.data.model.TransactionItem
-import com.example.data.model.TransactionType
 import com.example.data.repository.SanchayRepository
-import com.example.service.ParsedUpiNotification
-import com.example.service.UpiNotificationBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 enum class NavigationTab(val title: String) {
   DASHBOARD("Dashboard"),
@@ -59,7 +55,14 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   }.stateIn(
     scope = viewModelScope,
     started = SharingStarted.WhileSubscribed(5000),
-    initialValue = PacingInfo(450.0, 3150.0, 13500.0, 200)
+    initialValue = PacingInfo(
+      dailyPace = 0.0,
+      weeklyPace = 0.0,
+      monthlyPace = 0.0,
+      daysRemaining = 0,
+      isExpired = false,
+      isCompleted = false
+    )
   )
 
   val channelBreakdown: StateFlow<List<ChannelBreakdown>> = transactions.combine(goals) { txs, _ ->
@@ -68,24 +71,14 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
     scope = viewModelScope,
     started = SharingStarted.WhileSubscribed(5000),
     initialValue = listOf(
-      ChannelBreakdown(Channel.UPI, 35000.0, 0.58f),
-      ChannelBreakdown(Channel.CASH, 15000.0, 0.25f),
-      ChannelBreakdown(Channel.OTHER, 10000.0, 0.17f)
+      ChannelBreakdown(Channel.UPI, 0.0, 0f),
+      ChannelBreakdown(Channel.CASH, 0.0, 0f),
+      ChannelBreakdown(Channel.OTHER, 0.0, 0f)
     )
   )
 
   val weeklyBars: StateFlow<List<DailyBarData>> = transactions.combine(goals) { txs, _ ->
     repository.calculateWeeklyBars(txs)
-  }.stateIn(
-    scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(5000),
-    initialValue = emptyList()
-  )
-
-  // Auto-captured transactions for today
-  val autoCapturedTodayTransactions: StateFlow<List<TransactionItem>> = transactions.combine(goals) { txs, _ ->
-    val todayEpoch = LocalDate.now().toEpochDay()
-    txs.filter { it.isAutoCaptured && it.dateEpochDay == todayEpoch }
   }.stateIn(
     scope = viewModelScope,
     started = SharingStarted.WhileSubscribed(5000),
@@ -98,29 +91,11 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   private val _isDarkTheme = MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
   val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
-  private val _autoConfirmUpi = MutableStateFlow(prefs.getBoolean("auto_confirm_upi", false))
-  val autoConfirmUpi: StateFlow<Boolean> = _autoConfirmUpi
-
-  private val _pendingUpiNotification = MutableStateFlow<ParsedUpiNotification?>(null)
-  val pendingUpiNotification: StateFlow<ParsedUpiNotification?> = _pendingUpiNotification
-
   private val _currentTab = MutableStateFlow(NavigationTab.DASHBOARD)
   val currentTab: StateFlow<NavigationTab> = _currentTab
 
   private val _filterChannelForLedger = MutableStateFlow<Channel?>(null)
   val filterChannelForLedger: StateFlow<Channel?> = _filterChannelForLedger
-
-  init {
-    viewModelScope.launch {
-      UpiNotificationBus.detectedNotifications.collect { notification ->
-        if (_autoConfirmUpi.value) {
-          confirmPendingUpi(notification)
-        } else {
-          _pendingUpiNotification.value = notification
-        }
-      }
-    }
-  }
 
   fun setTab(tab: NavigationTab) {
     _currentTab.value = tab
@@ -139,40 +114,6 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   fun toggleDarkTheme(isDark: Boolean) {
     _isDarkTheme.value = isDark
     prefs.edit().putBoolean("is_dark_theme", isDark).apply()
-  }
-
-  fun toggleAutoConfirmUpi(enabled: Boolean) {
-    _autoConfirmUpi.value = enabled
-    prefs.edit().putBoolean("auto_confirm_upi", enabled).apply()
-  }
-
-  fun confirmPendingUpi(notification: ParsedUpiNotification, targetGoalId: Long? = null) {
-    val today = LocalDate.now()
-    val signedAmount = if (notification.type == TransactionType.DEBIT) -notification.amount else notification.amount
-    val note = "${notification.merchantOrPerson} (${notification.appName})"
-
-    val item = TransactionItem(
-      goalId = targetGoalId ?: primaryGoal.value?.id,
-      amount = signedAmount,
-      channel = Channel.UPI,
-      note = note,
-      timestamp = notification.timestamp,
-      dateEpochDay = today.toEpochDay(),
-      isAutoCaptured = true,
-      upiAppName = notification.appName,
-      merchantOrSender = notification.merchantOrPerson,
-      upiRefId = notification.upiRefId,
-      isConfirmed = true
-    )
-
-    addTransaction(item)
-    if (_pendingUpiNotification.value == notification) {
-      _pendingUpiNotification.value = null
-    }
-  }
-
-  fun dismissPendingUpi() {
-    _pendingUpiNotification.value = null
   }
 
   fun addTransaction(item: TransactionItem) {

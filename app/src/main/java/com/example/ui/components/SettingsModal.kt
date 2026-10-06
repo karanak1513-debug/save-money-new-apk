@@ -2,7 +2,6 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -58,12 +53,8 @@ import com.example.ui.theme.SwissTextTertiary
 fun SettingsModal(
   currentUserName: String,
   isDarkTheme: Boolean,
-  autoConfirmUpi: Boolean,
   onUpdateUserName: (String) -> Unit,
   onToggleDarkTheme: (Boolean) -> Unit,
-  onToggleAutoConfirmUpi: (Boolean) -> Unit,
-  onOpenListenerSettings: () -> Unit,
-  onOpenSimulator: () -> Unit,
   onDismiss: () -> Unit
 ) {
   var nameText by remember { mutableStateOf(currentUserName) }
@@ -149,7 +140,7 @@ fun SettingsModal(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Auto-Log UPI Toggle Row
+      // Currency Display
       Row(
         modifier = Modifier
           .fillMaxWidth()
@@ -159,91 +150,34 @@ fun SettingsModal(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp),
-          modifier = Modifier.weight(1f)
-        ) {
-          Icon(
-            imageVector = Icons.Default.NotificationsActive,
-            contentDescription = null,
-            tint = SwissCrimson,
-            modifier = Modifier.size(20.dp)
+        Column {
+          Text(
+            text = "Primary Currency",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
           )
-          Column {
-            Text(
-              text = "Auto-Log UPI Payments",
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.SemiBold,
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-              text = if (autoConfirmUpi) "Log directly without in-app banner" else "Show banner prompt to confirm/categorize",
-              style = MaterialTheme.typography.bodySmall,
-              color = SwissTextSecondary
-            )
-          }
+          Text(
+            text = "Indian Rupee (₹ INR) - 100% Offline Local Data",
+            style = MaterialTheme.typography.bodySmall,
+            color = SwissTextSecondary
+          )
         }
-
-        Switch(
-          checked = autoConfirmUpi,
-          onCheckedChange = { onToggleAutoConfirmUpi(it) },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
-            checkedTrackColor = SwissCrimson,
-            uncheckedThumbColor = Color.White,
-            uncheckedTrackColor = SwissBorder
-          ),
-          modifier = Modifier.testTag("auto_confirm_switch")
-        )
-      }
-
-      Spacer(modifier = Modifier.height(12.dp))
-
-      // Notification Listener Android Permission & Simulator buttons
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-      ) {
-        OutlinedButton(
-          onClick = onOpenListenerSettings,
-          shape = RoundedCornerShape(8.dp),
-          colors = ButtonDefaults.outlinedButtonColors(contentColor = SwissDark),
+        Box(
           modifier = Modifier
-            .weight(1f)
-            .height(44.dp)
+            .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-          ) {
-            Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
-            Text("Access Settings", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-          }
-        }
-
-        Button(
-          onClick = {
-            onDismiss()
-            onOpenSimulator()
-          },
-          colors = ButtonDefaults.buttonColors(containerColor = SwissCrimson),
-          shape = RoundedCornerShape(8.dp),
-          modifier = Modifier
-            .weight(1f)
-            .height(44.dp)
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-          ) {
-            Icon(Icons.Default.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Text("Simulate UPI", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-          }
+          Text(
+            text = "₹ INR",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = SwissDark
+          )
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
       // Theme Toggle Row
       Row(
@@ -293,7 +227,7 @@ fun SettingsModal(
         )
       }
 
-      Spacer(modifier = Modifier.height(20.dp))
+      Spacer(modifier = Modifier.height(24.dp))
 
       Button(
         onClick = {

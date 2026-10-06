@@ -17,8 +17,8 @@ enum class FrequencyPref(val displayName: String) {
 }
 
 enum class TransactionType {
-  CREDIT, // savings added (+)
-  DEBIT   // savings drawn / withdrawn (-)
+  CREDIT, // savings / deposit added (+)
+  DEBIT   // spending / deduction (-)
 }
 
 data class Goal(
@@ -41,7 +41,7 @@ data class Goal(
 data class TransactionItem(
   val id: Long = 0,
   val goalId: Long? = null,
-  val amount: Double, // positive for credit, negative for debit
+  val amount: Double, // positive for credit (+), negative for debit (-)
   val channel: Channel,
   val note: String,
   val timestamp: Long,
@@ -70,7 +70,9 @@ data class PacingInfo(
   val dailyPace: Double,
   val weeklyPace: Double,
   val monthlyPace: Double,
-  val daysRemaining: Long
+  val daysRemaining: Long,
+  val isExpired: Boolean = false,
+  val isCompleted: Boolean = false
 )
 
 object CurrencyFormatter {

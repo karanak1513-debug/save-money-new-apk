@@ -1,7 +1,5 @@
 package com.example.ui
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,20 +32,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.data.model.Channel
-import com.example.service.ParsedUpiNotification
-import com.example.service.UpiSimulationHelper
 import com.example.ui.components.AddEntryBottomSheet
+import com.example.ui.components.QuickPasteUpiSheet
 import com.example.ui.components.SettingsModal
-import com.example.ui.components.UpiSimulationDialog
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GoalManagerScreen
 import com.example.ui.screens.HistoryLedgerScreen
@@ -64,34 +57,20 @@ import com.example.ui.viewmodel.SanchayViewModel
 fun SanchayApp(
   viewModel: SanchayViewModel = viewModel()
 ) {
-  val context = LocalContext.current
   val goals by viewModel.goals.collectAsStateWithLifecycle()
   val primaryGoal by viewModel.primaryGoal.collectAsStateWithLifecycle()
   val pacingInfo by viewModel.pacingInfo.collectAsStateWithLifecycle()
   val channelBreakdown by viewModel.channelBreakdown.collectAsStateWithLifecycle()
   val weeklyBars by viewModel.weeklyBars.collectAsStateWithLifecycle()
   val transactions by viewModel.transactions.collectAsStateWithLifecycle()
-  val autoCapturedToday by viewModel.autoCapturedTodayTransactions.collectAsStateWithLifecycle()
-  val pendingUpiNotification by viewModel.pendingUpiNotification.collectAsStateWithLifecycle()
-  val autoConfirmUpi by viewModel.autoConfirmUpi.collectAsStateWithLifecycle()
   val userName by viewModel.userName.collectAsStateWithLifecycle()
   val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
   val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
   val filterChannel by viewModel.filterChannelForLedger.collectAsStateWithLifecycle()
 
   var showAddEntrySheet by remember { mutableStateOf(false) }
+  var showQuickPasteSheet by remember { mutableStateOf(false) }
   var showSettingsModal by remember { mutableStateOf(false) }
-  var showSimulationSheet by remember { mutableStateOf(false) }
-  var categorizePayload by remember { mutableStateOf<ParsedUpiNotification?>(null) }
-
-  // Check notification listener permission
-  val isListenerGranted = remember(context) {
-    try {
-      NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
-    } catch (e: Exception) {
-      false
-    }
-  }
 
   // Back handling: If on secondary tab, return to Dashboard first
   if (currentTab != NavigationTab.DASHBOARD) {
@@ -164,32 +143,10 @@ fun SanchayApp(
               pacingInfo = pacingInfo,
               channelBreakdown = channelBreakdown,
               weeklyBars = weeklyBars,
-              autoCapturedTodayEntries = autoCapturedToday,
-              pendingUpiNotification = pendingUpiNotification,
-              isNotificationListenerGranted = isListenerGranted,
-              onOpenListenerSettings = {
-                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                  addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-              },
-              onOpenSimulator = { showSimulationSheet = true },
-              onConfirmNotification = { notif ->
-                viewModel.confirmPendingUpi(notif)
-              },
-              onCategorizeNotification = { notif ->
-                categorizePayload = notif
-                viewModel.dismissPendingUpi()
-                showAddEntrySheet = true
-              },
-              onDismissNotification = {
-                viewModel.dismissPendingUpi()
-              },
+              hasTransactions = transactions.isNotEmpty(),
+              onOpenQuickPaste = { showQuickPasteSheet = true },
               onOpenSettings = { showSettingsModal = true },
-              onOpenAddEntry = {
-                categorizePayload = null
-                showAddEntrySheet = true
-              },
+              onOpenAddEntry = { showAddEntrySheet = true },
               onSwitchGoal = { viewModel.setTab(NavigationTab.GOALS) },
               onChannelFilterClick = { ch ->
                 viewModel.filterLedgerByChannel(ch)
@@ -220,23 +177,24 @@ fun SanchayApp(
 
       // Add Entry Modal Sheet
       if (showAddEntrySheet) {
-        val cat = categorizePayload
         AddEntryBottomSheet(
           goals = goals,
           selectedGoalId = primaryGoal?.id,
-          initialType = cat?.type ?: com.example.data.model.TransactionType.CREDIT,
-          initialAmount = cat?.amount,
-          initialChannel = Channel.UPI,
-          initialNote = cat?.let { "${it.merchantOrPerson} (${it.appName})" } ?: "",
-          initialUpiAppName = cat?.appName,
-          initialUpiRefId = cat?.upiRefId,
-          onDismiss = {
-            showAddEntrySheet = false
-            categorizePayload = null
-          },
+          onDismiss = { showAddEntrySheet = false },
           onSaveEntry = { item ->
             viewModel.addTransaction(item)
-            categorizePayload = null
+          }
+        )
+      }
+
+      // Quick Paste UPI / SMS Smart Sheet
+      if (showQuickPasteSheet) {
+        QuickPasteUpiSheet(
+          goals = goals,
+          selectedGoalId = primaryGoal?.id,
+          onDismiss = { showQuickPasteSheet = false },
+          onSaveTransaction = { item ->
+            viewModel.addTransaction(item)
           }
         )
       }
@@ -246,28 +204,9 @@ fun SanchayApp(
         SettingsModal(
           currentUserName = userName,
           isDarkTheme = isDarkTheme,
-          autoConfirmUpi = autoConfirmUpi,
           onUpdateUserName = { newName -> viewModel.updateUserName(newName) },
           onToggleDarkTheme = { dark -> viewModel.toggleDarkTheme(dark) },
-          onToggleAutoConfirmUpi = { auto -> viewModel.toggleAutoConfirmUpi(auto) },
-          onOpenListenerSettings = {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-              addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-          },
-          onOpenSimulator = { showSimulationSheet = true },
           onDismiss = { showSettingsModal = false }
-        )
-      }
-
-      // Simulation Sheet
-      if (showSimulationSheet) {
-        UpiSimulationDialog(
-          onDismiss = { showSimulationSheet = false },
-          onSimulate = { demo ->
-            UpiSimulationHelper.simulate(demo)
-          }
         )
       }
     }

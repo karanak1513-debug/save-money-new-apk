@@ -23,8 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,13 +46,8 @@ import com.example.data.model.CurrencyFormatter
 import com.example.data.model.DailyBarData
 import com.example.data.model.Goal
 import com.example.data.model.PacingInfo
-import com.example.data.model.TransactionItem
-import com.example.service.ParsedUpiNotification
 import com.example.ui.components.DonutBreakdownChart
-import com.example.ui.components.NotificationPermissionBanner
 import com.example.ui.components.PrimaryGoalCard
-import com.example.ui.components.TodayUpiActivityCard
-import com.example.ui.components.UpiDetectedBanner
 import com.example.ui.components.WeeklyBarChart
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
@@ -59,6 +55,7 @@ import com.example.ui.theme.ChannelUpi
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
+import com.example.ui.theme.SwissCrimsonLight
 import com.example.ui.theme.SwissDark
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
@@ -70,14 +67,8 @@ fun DashboardScreen(
   pacingInfo: PacingInfo,
   channelBreakdown: List<ChannelBreakdown>,
   weeklyBars: List<DailyBarData>,
-  autoCapturedTodayEntries: List<TransactionItem>,
-  pendingUpiNotification: ParsedUpiNotification?,
-  isNotificationListenerGranted: Boolean,
-  onOpenListenerSettings: () -> Unit,
-  onOpenSimulator: () -> Unit,
-  onConfirmNotification: (ParsedUpiNotification) -> Unit,
-  onCategorizeNotification: (ParsedUpiNotification) -> Unit,
-  onDismissNotification: () -> Unit,
+  hasTransactions: Boolean,
+  onOpenQuickPaste: () -> Unit,
   onOpenSettings: () -> Unit,
   onOpenAddEntry: () -> Unit,
   onSwitchGoal: () -> Unit,
@@ -88,7 +79,6 @@ fun DashboardScreen(
     modifier = modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.background,
     floatingActionButton = {
-      // Primary CTA: Floating Bottom Pill Button: Solid Crimson Red with white text "+ Add Entry"
       ExtendedFloatingActionButton(
         onClick = onOpenAddEntry,
         containerColor = SwissCrimson,
@@ -126,9 +116,7 @@ fun DashboardScreen(
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-      // 1. Header:
-      // Left: Personalized greeting "Namaste, [User Name]" with a small avatar badge.
-      // Right: Minimalist Settings icon & Simulator icon
+      // 1. Header: Greeting & Quick Actions
       item {
         Row(
           modifier = Modifier
@@ -141,7 +129,6 @@ fun DashboardScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
           ) {
-            // Small minimal avatar badge with initials
             Box(
               modifier = Modifier
                 .size(38.dp)
@@ -166,7 +153,7 @@ fun DashboardScreen(
                 letterSpacing = (-0.3).sp
               )
               Text(
-                text = "Manual & Auto-UPI Savings Ledger",
+                text = "Minimalist Manual Savings Tracker",
                 style = MaterialTheme.typography.bodySmall,
                 color = SwissTextSecondary,
                 letterSpacing = 0.2.sp
@@ -174,67 +161,86 @@ fun DashboardScreen(
             }
           }
 
-          Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            // Quick Test Simulator Button
-            IconButton(
-              onClick = onOpenSimulator,
-              modifier = Modifier
-                .size(40.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-                .testTag("dashboard_simulator_icon_button")
-            ) {
-              Icon(
-                imageVector = Icons.Default.Bolt,
-                contentDescription = "Simulate UPI Notification",
-                tint = SwissCrimson,
-                modifier = Modifier.size(20.dp)
-              )
-            }
-
-            // Minimalist Settings Icon
-            IconButton(
-              onClick = onOpenSettings,
-              modifier = Modifier
-                .size(40.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-                .testTag("settings_icon_button")
-            ) {
-              Icon(
-                imageVector = Icons.Default.Tune,
-                contentDescription = "Settings",
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp)
-              )
-            }
+          IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier
+              .size(40.dp)
+              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+              .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+              .testTag("settings_icon_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Tune,
+              contentDescription = "Settings",
+              tint = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.size(20.dp)
+            )
           }
         }
       }
 
-      // Non-intrusive In-App Banner: "Detected ₹450 paid to XYZ. Categorize or Confirm?"
-      if (pendingUpiNotification != null) {
-        item {
-          UpiDetectedBanner(
-            pendingNotification = pendingUpiNotification,
-            onConfirm = onConfirmNotification,
-            onCategorize = onCategorizeNotification,
-            onDismiss = onDismissNotification
-          )
+      // Functional Quick Paste UPI / SMS Smart Bar
+      item {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
+            .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
+            .clickable { onOpenQuickPaste() }
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .testTag("quick_paste_action_banner"),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(32.dp)
+                .background(SwissCrimsonLight, RoundedCornerShape(6.dp)),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Bolt,
+                contentDescription = null,
+                tint = SwissCrimson,
+                modifier = Modifier.size(18.dp)
+              )
+            }
+            Column {
+              Text(
+                text = "Quick Paste UPI / SMS",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+              )
+              Text(
+                text = "Auto-parse amount, type & merchant instantly",
+                style = MaterialTheme.typography.bodySmall,
+                color = SwissTextSecondary,
+                fontSize = 11.sp
+              )
+            }
+          }
+
+          Box(
+            modifier = Modifier
+              .background(SwissDark, RoundedCornerShape(6.dp))
+              .padding(horizontal = 10.dp, vertical = 6.dp)
+          ) {
+            Text(
+              text = "Paste",
+              style = MaterialTheme.typography.labelSmall,
+              fontWeight = FontWeight.Bold,
+              color = Color.White
+            )
+          }
         }
       }
 
-      // Notification Listener Status & Permission Banner
-      item {
-        NotificationPermissionBanner(
-          isPermissionGranted = isNotificationListenerGranted,
-          onOpenSettings = onOpenListenerSettings,
-          onOpenSimulator = onOpenSimulator
-        )
-      }
-
-      // 2. Primary Goal Card (Frosted White Border, Flat Surface):
-      // Hero Target Card with dynamic run-rate (e.g., "Save ₹450 today to stay on track")
+      // 2. Primary Goal Card (Non-overlapping 2-column layout)
       item {
         PrimaryGoalCard(
           goal = primaryGoal,
@@ -243,8 +249,7 @@ fun DashboardScreen(
         )
       }
 
-      // 4. Bucket Summary Chips (Horizontal):
-      // [UPI: ₹35,000] | [Cash: ₹15,000] | [Other: ₹10,000]
+      // 4. Bucket Summary Chips (Horizontal)
       item {
         Column(modifier = Modifier.fillMaxWidth()) {
           Text(
@@ -304,15 +309,37 @@ fun DashboardScreen(
         }
       }
 
-      // Today's Detected UPI Activity feed
-      item {
-        TodayUpiActivityCard(
-          autoCapturedEntries = autoCapturedTodayEntries
-        )
+      // Empty state notice if zero transactions exist
+      if (!hasTransactions) {
+        item {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+              .border(1.dp, SwissBorder, RoundedCornerShape(12.dp))
+              .padding(20.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text(
+                text = "NO TRANSACTIONS YET",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = SwissTextTertiary,
+                letterSpacing = 1.sp
+              )
+              Spacer(modifier = Modifier.height(4.dp))
+              Text(
+                text = "Add your first entry below or paste a UPI payment SMS above.",
+                style = MaterialTheme.typography.bodySmall,
+                color = SwissTextSecondary
+              )
+            }
+          }
+        }
       }
 
-      // 3. Visual Analytics Section:
-      // Donut Chart: "Channel Distribution" showing split between UPI, Cash, Other
+      // 3. Visual Analytics Section
       item {
         DonutBreakdownChart(
           breakdown = channelBreakdown,
@@ -322,14 +349,13 @@ fun DashboardScreen(
         )
       }
 
-      // Weekly Bar Chart: 7 clean vertical bars
+      // Weekly Activity Bar Chart
       item {
         WeeklyBarChart(
           dailyData = weeklyBars
         )
       }
 
-      // Bottom padding space for FAB
       item {
         Spacer(modifier = Modifier.height(72.dp))
       }

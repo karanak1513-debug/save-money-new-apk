@@ -171,7 +171,9 @@ fun GoalManagerScreen(
       // Inline action triggers: Edit (Pencil) and Delete (Trash).
       items(goals, key = { it.id }) { goal ->
         val todayEpoch = LocalDate.now().toEpochDay()
-        val daysRemaining = max(0L, goal.deadlineEpochDay - todayEpoch)
+        val rawDaysRemaining = goal.deadlineEpochDay - todayEpoch
+        val isExpired = rawDaysRemaining <= 0
+        val daysRemaining = max(0L, rawDaysRemaining)
         val progress = goal.progressFraction
         val animatedProgress by animateFloatAsState(
           targetValue = progress,
@@ -180,11 +182,13 @@ fun GoalManagerScreen(
         )
 
         // Frequency run-rate calculation
-        val dailyPace = if (daysRemaining > 0) goal.remainingAmount / daysRemaining else 0.0
-        val runRateText = when (goal.frequencyPref) {
-          FrequencyPref.DAILY -> "${CurrencyFormatter.formatRupee(dailyPace)} / day"
-          FrequencyPref.WEEKLY -> "${CurrencyFormatter.formatRupee(dailyPace * 7)} / week"
-          FrequencyPref.MONTHLY -> "${CurrencyFormatter.formatRupee(dailyPace * 30)} / month"
+        val dailyPace = if (!isExpired && daysRemaining > 0) goal.remainingAmount / daysRemaining else 0.0
+        val runRateText = when {
+          isExpired -> "Deadline elapsed"
+          goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount -> "Target achieved!"
+          goal.frequencyPref == FrequencyPref.DAILY -> "${CurrencyFormatter.formatRupee(dailyPace)} / day"
+          goal.frequencyPref == FrequencyPref.WEEKLY -> "${CurrencyFormatter.formatRupee(dailyPace * 7)} / week"
+          else -> "${CurrencyFormatter.formatRupee(dailyPace * 30)} / month"
         }
 
         Column(
@@ -303,17 +307,17 @@ fun GoalManagerScreen(
               fontSize = 18.sp
             )
 
-            // Target date countdown ("42 days remaining")
+            // Target date countdown ("42 days remaining" or "Expired")
             Box(
               modifier = Modifier
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
+                .background(if (isExpired) SwissCrimsonLight else Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
               Text(
-                text = "$daysRemaining days remaining",
+                text = if (isExpired) "Expired" else "$daysRemaining days remaining",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = SwissDark
+                color = if (isExpired) SwissCrimson else SwissDark
               )
             }
           }

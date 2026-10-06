@@ -64,19 +64,32 @@ class SanchayRepository(private val dao: SanchayDao) {
 
   fun calculatePacing(goal: Goal?): PacingInfo {
     if (goal == null) {
-      return PacingInfo(dailyPace = 450.0, weeklyPace = 3150.0, monthlyPace = 13500.0, daysRemaining = 200)
+      return PacingInfo(
+        dailyPace = 0.0,
+        weeklyPace = 0.0,
+        monthlyPace = 0.0,
+        daysRemaining = 0,
+        isExpired = false,
+        isCompleted = false
+      )
     }
     val todayEpoch = LocalDate.now().toEpochDay()
-    val daysRemaining = max(1L, goal.deadlineEpochDay - todayEpoch)
-    val remaining = max(0.0, goal.targetAmount - goal.savedAmount)
-    val daily = if (daysRemaining > 0) remaining / daysRemaining else 0.0
-    val weekly = daily * 7
-    val monthly = daily * 30
+    val rawDaysRemaining = goal.deadlineEpochDay - todayEpoch
+    val isExpired = rawDaysRemaining <= 0
+    val remainingAmount = (goal.targetAmount - goal.savedAmount).coerceAtLeast(0.0)
+    val isCompleted = goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount
+
+    val daily = if (rawDaysRemaining > 0 && !isCompleted) remainingAmount / rawDaysRemaining.toDouble() else 0.0
+    val weekly = daily * 7.0
+    val monthly = daily * 30.0
+
     return PacingInfo(
       dailyPace = daily,
       weeklyPace = weekly,
       monthlyPace = monthly,
-      daysRemaining = daysRemaining
+      daysRemaining = max(0L, rawDaysRemaining),
+      isExpired = isExpired,
+      isCompleted = isCompleted
     )
   }
 
@@ -94,7 +107,6 @@ class SanchayRepository(private val dao: SanchayDao) {
       }
     }
 
-    // Guard against negative balances in channel view
     val safeUpi = max(0.0, upiTotal)
     val safeCash = max(0.0, cashTotal)
     val safeOther = max(0.0, otherTotal)
@@ -104,17 +116,17 @@ class SanchayRepository(private val dao: SanchayDao) {
       ChannelBreakdown(
         channel = Channel.UPI,
         amount = safeUpi,
-        percentage = if (grandTotal > 0) (safeUpi / grandTotal).toFloat() else 0.33f
+        percentage = if (grandTotal > 0) (safeUpi / grandTotal).toFloat() else 0f
       ),
       ChannelBreakdown(
         channel = Channel.CASH,
         amount = safeCash,
-        percentage = if (grandTotal > 0) (safeCash / grandTotal).toFloat() else 0.33f
+        percentage = if (grandTotal > 0) (safeCash / grandTotal).toFloat() else 0f
       ),
       ChannelBreakdown(
         channel = Channel.OTHER,
         amount = safeOther,
-        percentage = if (grandTotal > 0) (safeOther / grandTotal).toFloat() else 0.34f
+        percentage = if (grandTotal > 0) (safeOther / grandTotal).toFloat() else 0f
       )
     )
   }
