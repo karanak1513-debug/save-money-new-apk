@@ -1,0 +1,6 @@
+{
+  "name": "Sanchay",
+  "description": "Ultra-minimalist personal manual savings tracker with Swiss typographic design",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Crimson accent circle dot -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M76,30 A4,4 0 1,1 76,29.9 Z" />
+
+    <!-- Indian Rupee (₹) Swiss Geometric Glyphs -->
+    <!-- Top Horizontal Bar -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M33,32 H75 V37 H33 Z" />
+
+    <!-- Second Horizontal Bar (Crimson) -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M33,42 H67 V47 H33 Z" />
+
+    <!-- Vertical Stem -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M43,32 H48 V62 H43 Z" />
+
+    <!-- Loop of Rupee -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M48,42 C64,42 64,59 48,59 V54 C58,54 58,47 48,47 Z" />
+
+    <!-- Diagonal Leg -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M45,58 L68,82 H75 L52,58 Z" />
+
+    <!-- Subtle bottom Swiss baseline indicator -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M33,80 H41 V82 H33 Z" />
+</vector>
