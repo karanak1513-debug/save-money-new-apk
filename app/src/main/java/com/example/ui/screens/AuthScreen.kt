@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import android.app.Activity
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -52,6 +55,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -65,8 +69,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.ui.theme.MonospaceMicro
-import com.example.ui.theme.MonospaceSmall
+import com.example.data.auth.AuthManager
+import com.example.ui.components.ambientMeshBackground
+import com.example.ui.components.frostedGlass
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissDark
@@ -74,13 +82,22 @@ import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
 import com.example.ui.viewmodel.AuthViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 
+private const val TAG = "AuthScreen"
+private const val GOOGLE_WEB_CLIENT_ID = "41954701104-1eqfhs3s6p6naknnui85ab2hubaki4dc.apps.googleusercontent.com"
+
 /**
- * Production-ready Swiss Minimalist Auth UI connected directly to live Firebase.
- * - Primary CTA: "Continue with Google" via Android Credential Manager One-Tap
+ * Luxury Frosted Glassmorphism Auth UI connected directly to live Firebase.
+ * - Primary CTA: "Continue with Google" via official GoogleSignInClient with explicit Web Client ID
+ * - Robust result handling: clears stale session with signOut() before launching, inspects ApiException codes
  * - Secondary: Collapsible Email & Password accordion binding directly to FirebaseAuth
- * - Non-blocking Snackbars on failure/cancel (zero offline mode downgrade)
+ * - Immediate state update on sign in and routing directly to DashboardScreen
  */
 @Composable
 fun AuthScreen(
@@ -90,7 +107,6 @@ fun AuthScreen(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
-  val activity = context as? Activity
   val scope = rememberCoroutineScope()
   val focusManager = LocalFocusManager.current
   val snackbarHostState = remember { SnackbarHostState() }
@@ -98,6 +114,62 @@ fun AuthScreen(
   val isLoadingGoogle by authViewModel.isLoadingGoogle.collectAsStateWithLifecycle()
   val isLoadingEmail by authViewModel.isLoadingEmail.collectAsStateWithLifecycle()
   val errorMessage by authViewModel.errorMessage.collectAsStateWithLifecycle()
+
+  // Google Sign-In Client configuration with official Web Client ID
+  val gso = remember {
+    GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+      .requestIdToken(GOOGLE_WEB_CLIENT_ID)
+      .requestEmail()
+      .build()
+  }
+  val googleSignInClient = remember(context) { GoogleSignIn.getClient(context, gso) }
+
+  // Activity Result Launcher for Google Sign-In with precise exception handling
+  val googleSignInLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.StartActivityForResult()
+  ) { result ->
+    val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+    try {
+      val account = task.getResult(ApiException::class.java)
+      val idToken = account?.idToken
+      if (!idToken.isNullOrEmpty()) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        FirebaseAuth.getInstance().signInWithCredential(credential)
+          .addOnSuccessListener { authResult ->
+            val user = authResult.user
+            if (user != null) {
+              AuthManager.onFirebaseUserAuthenticated(user)
+            }
+            authViewModel.setGoogleLoading(false)
+            // Direct transition to Dashboard
+            onAuthenticated()
+          }
+          .addOnFailureListener { e ->
+            authViewModel.setGoogleLoading(false)
+            Log.e(TAG, "Firebase credential sign-in error: ${e.message}", e)
+            authViewModel.setErrorMessage(e.localizedMessage ?: "Firebase authentication failed.")
+          }
+      } else {
+        authViewModel.setGoogleLoading(false)
+        authViewModel.setErrorMessage("Failed to obtain Google ID token. Please try again.")
+      }
+    } catch (e: ApiException) {
+      authViewModel.setGoogleLoading(false)
+      Log.w(TAG, "Google Sign-In ApiException: code=${e.statusCode}, message=${e.message}")
+      // Do NOT treat ApiException (like 10 or 12500) as a simple user cancellation.
+      // Display or log the exact error: "Google Sign-In Error Code: ${e.statusCode}"
+      if (e.statusCode != 12501 && e.statusCode != 16) {
+        authViewModel.setErrorMessage("Google Sign-In Error Code: ${e.statusCode}")
+      } else {
+        // User explicitly tapped outside or dismissed account picker
+        authViewModel.setErrorMessage("Sign-in was cancelled.")
+      }
+    } catch (e: Throwable) {
+      authViewModel.setGoogleLoading(false)
+      Log.e(TAG, "Unexpected Google Sign-In error: ${e.message}", e)
+      authViewModel.setErrorMessage(e.localizedMessage ?: "Google Sign-In failed.")
+    }
+  }
 
   // Collapsible Email & Password Section
   var showEmailAuth by remember { mutableStateOf(false) }
@@ -118,12 +190,13 @@ fun AuthScreen(
 
   Scaffold(
     snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-    containerColor = Color(0xFFFFFFFF),
+    containerColor = Color.Transparent,
     modifier = modifier.fillMaxSize()
   ) { paddingValues ->
     Box(
       modifier = Modifier
         .fillMaxSize()
+        .ambientMeshBackground()
         .padding(paddingValues)
         .testTag("auth_screen"),
       contentAlignment = Alignment.Center
@@ -131,16 +204,19 @@ fun AuthScreen(
       Column(
         modifier = Modifier
           .fillMaxWidth()
+          .padding(horizontal = 22.dp)
+          .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 6.dp)
           .verticalScroll(rememberScrollState())
-          .padding(horizontal = 28.dp, vertical = 36.dp),
+          .padding(horizontal = 24.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
       ) {
         // Geometric Emblem Accent
         Box(
           modifier = Modifier
             .size(48.dp)
-            .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-            .border(1.dp, SwissBorder, RoundedCornerShape(8.dp)),
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFF1F5F9))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp)),
           contentAlignment = Alignment.Center
         ) {
           Box(
@@ -150,15 +226,16 @@ fun AuthScreen(
           )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         // Header: "SANCHAY" — Minimalist Wealth Management
         Text(
           text = "SANCHAY",
+          fontFamily = PlusJakartaSans,
           color = SwissDark,
           fontWeight = FontWeight.Black,
           fontSize = 28.sp,
-          letterSpacing = 8.sp,
+          letterSpacing = 6.sp,
           modifier = Modifier.testTag("auth_title")
         )
 
@@ -166,25 +243,23 @@ fun AuthScreen(
 
         Text(
           text = "Minimalist Wealth Management",
-          style = MaterialTheme.typography.bodyMedium,
-          color = SwissTextSecondary,
+          style = SectionHeaderMedium,
+          color = SlateHeader,
           fontWeight = FontWeight.Medium,
           fontSize = 13.sp
         )
 
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // PRIMARY CTA: "Continue with Google"
         Button(
           onClick = {
-            if (activity != null) {
-              authViewModel.signInWithGoogle(activity) {
-                onAuthenticated()
-              }
-            } else {
-              scope.launch {
-                snackbarHostState.showSnackbar("Android Activity context is unavailable.")
-              }
+            authViewModel.setGoogleLoading(true)
+            authViewModel.clearError()
+            // Clear any stuck or stale account sessions so the account picker always opens cleanly
+            googleSignInClient.signOut().addOnCompleteListener {
+              val signInIntent = googleSignInClient.signInIntent
+              googleSignInLauncher.launch(signInIntent)
             }
           },
           enabled = !isAnyLoading,
@@ -192,10 +267,10 @@ fun AuthScreen(
             containerColor = SwissDark,
             contentColor = Color.White
           ),
-          shape = RoundedCornerShape(6.dp),
+          shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .height(52.dp)
             .testTag("continue_with_google_button")
         ) {
           if (isLoadingGoogle) {
@@ -206,11 +281,11 @@ fun AuthScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-              text = "CONNECTING GOOGLE...",
-              style = MonospaceSmall,
-              fontWeight = FontWeight.Bold,
+              text = "Connecting Google...",
+              fontFamily = PlusJakartaSans,
+              fontWeight = FontWeight.SemiBold,
               color = Color.White,
-              fontSize = 12.sp
+              fontSize = 13.sp
             )
           } else {
             Row(
@@ -234,7 +309,7 @@ fun AuthScreen(
               Spacer(modifier = Modifier.width(10.dp))
               Text(
                 text = "Continue with Google",
-                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
                 fontSize = 14.sp
@@ -253,10 +328,11 @@ fun AuthScreen(
           Box(modifier = Modifier.weight(1f).height(1.dp).background(SwissHairline))
           Text(
             text = "OR",
-            style = MonospaceMicro,
+            fontFamily = PlusJakartaSans,
+            fontWeight = FontWeight.Medium,
             color = SwissTextTertiary,
             modifier = Modifier.padding(horizontal = 12.dp),
-            fontSize = 10.sp
+            fontSize = 11.sp
           )
           Box(modifier = Modifier.weight(1f).height(1.dp).background(SwissHairline))
         }
@@ -267,20 +343,21 @@ fun AuthScreen(
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF9FAFB), RoundedCornerShape(6.dp))
-            .border(1.dp, SwissBorder, RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFF1F5F9))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
             .clickable { showEmailAuth = !showEmailAuth }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
             .testTag("email_auth_collapsible_toggle"),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
             text = "Sign in with Email & Password",
-            style = MaterialTheme.typography.bodySmall,
+            fontFamily = PlusJakartaSans,
             fontWeight = FontWeight.Medium,
             color = SwissDark,
-            fontSize = 12.sp
+            fontSize = 13.sp
           )
           Icon(
             imageVector = if (showEmailAuth) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
@@ -304,7 +381,7 @@ fun AuthScreen(
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+                .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                 .padding(3.dp)
             ) {
               Box(
@@ -312,17 +389,18 @@ fun AuthScreen(
                   .weight(1f)
                   .background(
                     if (!isCreateAccountMode) Color.White else Color.Transparent,
-                    RoundedCornerShape(4.dp)
+                    RoundedCornerShape(6.dp)
                   )
                   .clickable { isCreateAccountMode = false }
-                  .padding(vertical = 7.dp),
+                  .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
               ) {
                 Text(
-                  text = "SIGN IN",
-                  style = MonospaceMicro,
+                  text = "Sign In",
+                  fontFamily = PlusJakartaSans,
                   color = if (!isCreateAccountMode) SwissDark else SwissTextSecondary,
-                  fontWeight = if (!isCreateAccountMode) FontWeight.Bold else FontWeight.Normal
+                  fontWeight = if (!isCreateAccountMode) FontWeight.Bold else FontWeight.Medium,
+                  fontSize = 12.sp
                 )
               }
 
@@ -331,17 +409,18 @@ fun AuthScreen(
                   .weight(1f)
                   .background(
                     if (isCreateAccountMode) Color.White else Color.Transparent,
-                    RoundedCornerShape(4.dp)
+                    RoundedCornerShape(6.dp)
                   )
                   .clickable { isCreateAccountMode = true }
-                  .padding(vertical = 7.dp),
+                  .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
               ) {
                 Text(
-                  text = "CREATE ACCOUNT",
-                  style = MonospaceMicro,
+                  text = "Create Account",
+                  fontFamily = PlusJakartaSans,
                   color = if (isCreateAccountMode) SwissDark else SwissTextSecondary,
-                  fontWeight = if (isCreateAccountMode) FontWeight.Bold else FontWeight.Normal
+                  fontWeight = if (isCreateAccountMode) FontWeight.Bold else FontWeight.Medium,
+                  fontSize = 12.sp
                 )
               }
             }
@@ -352,7 +431,7 @@ fun AuthScreen(
             OutlinedTextField(
               value = emailInput,
               onValueChange = { emailInput = it },
-              label = { Text("Email", style = MonospaceMicro) },
+              label = { Text("Email", fontFamily = PlusJakartaSans, fontSize = 12.sp) },
               singleLine = true,
               keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
@@ -365,7 +444,7 @@ fun AuthScreen(
                 unfocusedBorderColor = SwissBorder,
                 cursorColor = SwissDark
               ),
-              shape = RoundedCornerShape(6.dp),
+              shape = RoundedCornerShape(12.dp),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("auth_email_input")
@@ -377,7 +456,7 @@ fun AuthScreen(
             OutlinedTextField(
               value = passwordInput,
               onValueChange = { passwordInput = it },
-              label = { Text("Password", style = MonospaceMicro) },
+              label = { Text("Password", fontFamily = PlusJakartaSans, fontSize = 12.sp) },
               singleLine = true,
               visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
               keyboardOptions = KeyboardOptions(
@@ -404,7 +483,7 @@ fun AuthScreen(
                 unfocusedBorderColor = SwissBorder,
                 cursorColor = SwissDark
               ),
-              shape = RoundedCornerShape(6.dp),
+              shape = RoundedCornerShape(12.dp),
               modifier = Modifier
                 .fillMaxWidth()
                 .testTag("auth_password_input")
@@ -429,10 +508,10 @@ fun AuthScreen(
                 containerColor = Color(0xFF1F2937),
                 contentColor = Color.White
               ),
-              shape = RoundedCornerShape(6.dp),
+              shape = RoundedCornerShape(12.dp),
               modifier = Modifier
                 .fillMaxWidth()
-                .height(46.dp)
+                .height(48.dp)
                 .testTag("email_auth_submit_button")
             ) {
               if (isLoadingEmail) {
@@ -444,8 +523,9 @@ fun AuthScreen(
               } else {
                 Text(
                   text = if (isCreateAccountMode) "Create Account" else "Sign In",
-                  style = MaterialTheme.typography.bodyMedium,
-                  fontWeight = FontWeight.SemiBold
+                  fontFamily = PlusJakartaSans,
+                  fontWeight = FontWeight.SemiBold,
+                  fontSize = 14.sp
                 )
               }
             }
@@ -457,10 +537,10 @@ fun AuthScreen(
         // Guest / Local Mode Link
         Text(
           text = "Continue without account (Local Mode)",
-          style = MonospaceMicro,
+          fontFamily = PlusJakartaSans,
           color = SwissTextSecondary,
           fontWeight = FontWeight.Medium,
-          fontSize = 11.sp,
+          fontSize = 12.sp,
           modifier = Modifier
             .clickable { onContinueOffline() }
             .padding(8.dp)

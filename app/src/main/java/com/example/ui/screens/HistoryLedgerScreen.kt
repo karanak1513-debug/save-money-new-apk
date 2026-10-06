@@ -72,6 +72,12 @@ import com.example.ui.theme.MonospaceBody
 import com.example.ui.theme.MonospaceHeadline
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
+import androidx.compose.ui.draw.clip
+import com.example.ui.components.ambientMeshBackground
+import com.example.ui.components.frostedGlass
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.SwissAlpineGreen
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
@@ -245,15 +251,16 @@ fun HistoryLedgerScreen(
       item {
         Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
           Text(
-            text = "03 // VERIFIED TIMELINE",
-            style = MonospaceMicro,
-            color = SwissTextTertiary,
-            letterSpacing = 1.5.sp
+            text = "TRANSACTION LEDGER",
+            style = SectionHeaderMedium,
+            color = SlateHeader,
+            fontWeight = FontWeight.SemiBold
           )
           Spacer(modifier = Modifier.height(4.dp))
           Text(
             text = "History Ledger",
             style = MaterialTheme.typography.headlineLarge,
+            fontFamily = PlusJakartaSans,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             letterSpacing = (-0.5).sp
@@ -266,9 +273,9 @@ fun HistoryLedgerScreen(
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, SwissBorder)
-            .padding(vertical = 12.dp)
+            .padding(horizontal = 18.dp)
+            .frostedGlass(shape = RoundedCornerShape(20.dp), elevation = 3.dp)
+            .padding(vertical = 14.dp)
             .testTag("calendar_matrix_strip")
         ) {
           // Month Switcher Header
@@ -450,19 +457,19 @@ fun HistoryLedgerScreen(
             modifier = Modifier
               .fillMaxWidth()
               .padding(horizontal = 18.dp, vertical = 24.dp)
-              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-              .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp))
-              .padding(24.dp),
+              .frostedGlass(shape = RoundedCornerShape(20.dp), elevation = 2.dp)
+              .padding(28.dp),
             contentAlignment = Alignment.Center
           ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
               Text(
                 text = "NO TRANSACTIONS MATCHED",
-                style = MonospaceMicro,
-                color = SwissTextTertiary,
-                letterSpacing = 1.2.sp
+                style = SectionHeaderMedium,
+                color = SlateHeader,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
               )
-              Spacer(modifier = Modifier.height(4.dp))
+              Spacer(modifier = Modifier.height(6.dp))
               Text(
                 text = "Zero records match active filter criteria.",
                 style = MaterialTheme.typography.bodySmall,
@@ -478,8 +485,7 @@ fun HistoryLedgerScreen(
             modifier = Modifier
               .fillMaxWidth()
               .padding(horizontal = 18.dp)
-              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-              .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp))
+              .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 4.dp)
               .testTag("transaction_feed_table")
           ) {
             filteredTransactions.forEachIndexed { index, tx ->

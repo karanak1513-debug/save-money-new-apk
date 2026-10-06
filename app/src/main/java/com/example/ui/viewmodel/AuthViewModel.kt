@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Dedicated ViewModel for AuthScreen managing live Google and Email/Password flows.
+ * Handles state updates, token exchange with FirebaseAuth, and error reporting.
  */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -26,8 +27,33 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
   private val _errorMessage = MutableStateFlow<String?>(null)
   val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+  fun setGoogleLoading(loading: Boolean) {
+    _isLoadingGoogle.value = loading
+  }
+
+  fun setErrorMessage(msg: String?) {
+    _errorMessage.value = msg
+  }
+
   fun clearError() {
     _errorMessage.value = null
+  }
+
+  /**
+   * Exchanges Google ID Token for Firebase credential and authenticates directly.
+   */
+  fun handleGoogleIdToken(idToken: String, onSuccess: () -> Unit) {
+    _isLoadingGoogle.value = true
+    _errorMessage.value = null
+
+    AuthManager.signInWithGoogleToken(idToken, viewModelScope) { success, errorMsg ->
+      _isLoadingGoogle.value = false
+      if (success) {
+        onSuccess()
+      } else {
+        _errorMessage.value = errorMsg ?: "Google sign-in credential exchange failed."
+      }
+    }
   }
 
   /**

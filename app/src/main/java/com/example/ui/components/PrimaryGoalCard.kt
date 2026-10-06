@@ -36,6 +36,10 @@ import com.example.data.model.CurrencyFormatter
 import com.example.data.model.Goal
 import com.example.data.model.GoalFeasibility
 import com.example.data.model.PacingInfo
+import com.example.ui.theme.HeroBalanceExtraBold
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.MonospaceDisplay
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
@@ -79,12 +83,11 @@ fun PrimaryGoalCard(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-      .padding(20.dp)
+      .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 6.dp)
+      .padding(22.dp)
       .testTag("primary_goal_card")
   ) {
-    // Top Row: Editorial Tag & Switch Goal CTA
+    // Top Row: Section Header & Switch Goal CTA
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
@@ -92,27 +95,28 @@ fun PrimaryGoalCard(
     ) {
       Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         Box(
           modifier = Modifier
-            .size(6.dp)
+            .size(7.dp)
             .background(if (pacingInfo.isExpired) SwissDark else SwissCrimson, CircleShape)
         )
         Text(
-          text = "01 // ACTIVE ACCELERATION",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          letterSpacing = 1.2.sp
+          text = "PRIMARY GOAL",
+          style = SectionHeaderMedium,
+          color = SlateHeader,
+          fontWeight = FontWeight.SemiBold
         )
       }
 
       Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-          .clip(RoundedCornerShape(4.dp))
+          .clip(RoundedCornerShape(12.dp))
+          .background(Color(0x151E293B))
           .clickable { onSwitchGoalClick() }
-          .padding(horizontal = 6.dp, vertical = 2.dp)
+          .padding(horizontal = 10.dp, vertical = 4.dp)
           .testTag("switch_goal_button")
       ) {
         Text(
@@ -122,9 +126,10 @@ fun PrimaryGoalCard(
             pacingInfo.isCompleted -> "COMPLETED"
             else -> "${pacingInfo.daysRemaining}D REMAINING"
           },
-          style = MonospaceMicro,
+          style = MaterialTheme.typography.labelSmall,
           color = if (pacingInfo.isExpired) SwissCrimson else SwissDark,
-          fontWeight = FontWeight.Bold
+          fontWeight = FontWeight.Bold,
+          letterSpacing = 0.5.sp
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
@@ -136,15 +141,16 @@ fun PrimaryGoalCard(
       }
     }
 
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     // Goal Title Heading
     Text(
       text = title,
       style = MaterialTheme.typography.headlineMedium,
+      fontFamily = PlusJakartaSans,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.onSurface,
-      letterSpacing = (-0.3).sp,
+      letterSpacing = (-0.4).sp,
       maxLines = 1
     )
 
@@ -191,7 +197,7 @@ fun PrimaryGoalCard(
 
     Spacer(modifier = Modifier.height(14.dp))
 
-    // Editorial Financial Scale: Saved Amount vs Target
+    // Financial Scale: Saved Amount vs Target
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
@@ -200,46 +206,48 @@ fun PrimaryGoalCard(
       Column {
         Text(
           text = "SAVED AMOUNT",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          letterSpacing = 1.sp
+          style = SectionHeaderMedium,
+          fontSize = 11.sp,
+          color = SlateHeader,
+          letterSpacing = 0.8.sp
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
           text = if (isPrivacyMode) "₹••••••••" else CurrencyFormatter.formatRupee(savedAmount),
-          style = MonospaceDisplay,
+          style = HeroBalanceExtraBold,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 26.sp,
-          letterSpacing = (-0.5).sp
+          letterSpacing = (-0.8).sp
         )
       }
 
       Column(horizontalAlignment = Alignment.End) {
         Text(
           text = "TARGET GOAL",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          letterSpacing = 1.sp
+          style = SectionHeaderMedium,
+          fontSize = 11.sp,
+          color = SlateHeader,
+          letterSpacing = 0.8.sp
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
           text = if (isPrivacyMode) "₹••••••••" else CurrencyFormatter.formatRupee(targetAmount),
-          style = MonospaceSmall,
+          style = MaterialTheme.typography.titleMedium,
+          fontFamily = PlusJakartaSans,
           color = SwissTextSecondary,
           fontWeight = FontWeight.Bold,
-          fontSize = 14.sp
+          fontSize = 16.sp
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(14.dp))
 
     // 3px razor crimson progress bar (#DC2626)
     Box(
       modifier = Modifier
         .fillMaxWidth()
         .height(3.dp)
-        .background(Color(0xFFF3F4F6), RoundedCornerShape(1.5.dp))
+        .background(Color(0xFFE2E8F0), RoundedCornerShape(1.5.dp))
     ) {
       Box(
         modifier = Modifier
@@ -255,13 +263,14 @@ fun PrimaryGoalCard(
 
     Spacer(modifier = Modifier.height(18.dp))
 
-    // Pacing Grid: Strictly padded 3-column pacing grid preventing text collision
+    // Pacing Grid: Strictly padded 3-column pacing grid preventing text collision (16.dp squircle)
     Row(
       modifier = Modifier
         .fillMaxWidth()
-        .background(Color(0xFFF9FAFB), RoundedCornerShape(6.dp))
-        .border(1.dp, SwissHairline, RoundedCornerShape(6.dp))
-        .padding(vertical = 12.dp, horizontal = 12.dp),
+        .clip(RoundedCornerShape(16.dp))
+        .background(Color(0x70FFFFFF))
+        .border(1.dp, Color(0x60E2E8F0), RoundedCornerShape(16.dp))
+        .padding(vertical = 14.dp, horizontal = 12.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
       // Metric 1: Daily Pace
@@ -368,11 +377,12 @@ fun PrimaryGoalCard(
     Row(
       modifier = Modifier
         .fillMaxWidth()
+        .clip(RoundedCornerShape(12.dp))
         .background(
-          if (pacingInfo.isExpired) SwissCrimsonLight else Color(0xFFF9FAFB),
-          RoundedCornerShape(6.dp)
+          if (pacingInfo.isExpired) SwissCrimsonLight else Color(0x75FFFFFF)
         )
-        .padding(horizontal = 10.dp, vertical = 7.dp)
+        .border(0.75.dp, Color(0x60E2E8F0), RoundedCornerShape(12.dp))
+        .padding(horizontal = 12.dp, vertical = 9.dp)
         .testTag("suggested_pace_badge"),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(8.dp)

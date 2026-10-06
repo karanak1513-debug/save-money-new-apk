@@ -34,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,9 @@ import com.example.data.model.WeeklyAuditSummary
 import com.example.ui.theme.MonospaceHeadline
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.SwissAlpineGreen
 import com.example.ui.theme.SwissAlpineGreenLight
 import com.example.ui.theme.SwissBorder
@@ -66,9 +70,8 @@ fun WeeklyAuditCard(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
-      .padding(18.dp)
+      .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 4.dp)
+      .padding(20.dp)
       .testTag("weekly_audit_card")
   ) {
     // Header Row with Toggle
@@ -90,10 +93,10 @@ fun WeeklyAuditCard(
             .background(SwissCrimson, CircleShape)
         )
         Text(
-          text = "04 // WEEKLY AUDIT BRIEF",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          letterSpacing = 1.3.sp
+          text = "WEEKLY AUDIT BRIEF",
+          style = SectionHeaderMedium,
+          color = SlateHeader,
+          fontWeight = FontWeight.SemiBold
         )
       }
 
@@ -103,9 +106,10 @@ fun WeeklyAuditCard(
       ) {
         Text(
           text = auditSummary.dateRangeLabel,
-          style = MonospaceMicro,
+          style = MaterialTheme.typography.labelSmall,
+          fontFamily = PlusJakartaSans,
           color = SwissDark,
-          fontSize = 9.sp
+          fontSize = 11.sp
         )
         Icon(
           imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -181,9 +185,10 @@ fun WeeklyAuditCard(
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF9F9F8), RoundedCornerShape(6.dp))
-            .border(0.75.dp, SwissHairline, RoundedCornerShape(6.dp))
-            .padding(12.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x70FFFFFF))
+            .border(1.dp, Color(0x60E2E8F0), RoundedCornerShape(16.dp))
+            .padding(14.dp),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {

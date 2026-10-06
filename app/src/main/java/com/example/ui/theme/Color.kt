@@ -31,6 +31,19 @@ val SwissSlateLight = Color(0xFFF1F5F9)
 val SwissAlpineGreen = Color(0xFF16A34A)
 val SwissAlpineGreenLight = Color(0xFFF0FDF4)
 
+// Frosted Glassmorphism Palette
+val GlassCanvas = Color(0xFFF8FAFC)
+val GlassRoseGlow = Color(0xFFFFE4E6)
+val GlassIceBlue = Color(0xFFF1F5F9)
+val GlassIceBlueGlow = Color(0xFFE0F2FE)
+val GlassSurfaceMilky = Color(0xB8FFFFFF) // rgba(255, 255, 255, 0.72)
+val GlassSurfaceMilkyDense = Color(0xEBFFFFFF) // rgba(255, 255, 255, 0.92)
+val GlassBorderTop = Color(0xCCFFFFFF) // rgba(255, 255, 255, 0.8)
+val GlassBorderBottom = Color(0x66E2E8F0) // rgba(226, 232, 240, 0.4)
+val SlateHeader = Color(0xFF64748B) // Medium warm slate gray for headers
+val SlateBody = Color(0xFF334155)
+val SlateMuted = Color(0xFF94A3B8)
+
 // Financial Channel Indicators
 val ChannelUpi = Color(0xFF111827)
 val ChannelCash = Color(0xFFDC2626)
@@ -46,3 +59,6 @@ val SwissDarkText = Color(0xFFF8FAFC)
 val SwissDarkTextSecondary = Color(0xFF94A3B8)
 val SwissDarkCrimson = Color(0xFFEF4444)
 val SwissDarkCrimsonLight = Color(0xFF450A0A)
+val GlassDarkSurface = Color(0xCC1E293B)
+val GlassDarkBorderTop = Color(0x33FFFFFF)
+val GlassDarkBorderBottom = Color(0x11FFFFFF)

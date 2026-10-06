@@ -9,6 +9,10 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.SanchayApp
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import android.content.Context
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -74,6 +78,51 @@ object AuthManager {
 
   val isAuthenticated: Boolean
     get() = currentUser != null
+
+  /**
+   * Builds and configures GoogleSignInClient with the verified official Web Client ID.
+   */
+  fun getGoogleSignInClient(context: Context): GoogleSignInClient {
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+      .requestIdToken(WEB_CLIENT_ID)
+      .requestEmail()
+      .build()
+    return GoogleSignIn.getClient(context, gso)
+  }
+
+  /**
+   * Updates in-memory auth state and triggers Firestore user profile persistence.
+   */
+  fun onFirebaseUserAuthenticated(user: FirebaseUser) {
+    _currentUserState.value = user
+    persistUserProfile(user)
+  }
+
+  /**
+   * Exchanges Google ID Token for Firebase credential and authenticates directly.
+   */
+  fun signInWithGoogleToken(
+    idToken: String,
+    scope: CoroutineScope,
+    onResult: (Boolean, String?) -> Unit
+  ) {
+    val fbAuth = getFirebaseAuth()
+    val credential = GoogleAuthProvider.getCredential(idToken, null)
+    fbAuth.signInWithCredential(credential)
+      .addOnSuccessListener { authResult ->
+        val user = authResult.user
+        if (user != null) {
+          onFirebaseUserAuthenticated(user)
+          onResult(true, null)
+        } else {
+          onResult(false, "Authentication succeeded but no user returned.")
+        }
+      }
+      .addOnFailureListener { e ->
+        Log.e(TAG, "Firebase credential sign in failed: ${e.message}", e)
+        onResult(false, e.localizedMessage ?: "Firebase authentication failed.")
+      }
+  }
 
   /**
    * Live Google 1-Tap Sign-In using Android Credential Manager.

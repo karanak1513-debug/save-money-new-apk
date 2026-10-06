@@ -123,11 +123,12 @@ fun SettingsModal(
       ) {
         Column {
           Text(
-            text = "SYSTEM CONFIGURATION",
+            text = "SETTINGS & PREFERENCES",
             style = MonospaceMicro,
-            color = SwissCrimson,
+            color = SwissTextSecondary,
             letterSpacing = 1.2.sp
           )
+          Spacer(modifier = Modifier.height(2.dp))
           Text(
             text = "App Preferences",
             style = MaterialTheme.typography.headlineMedium,

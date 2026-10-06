@@ -58,6 +58,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import com.example.ui.components.ambientMeshBackground
+import com.example.ui.components.frostedGlass
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.FrequencyPref
 import com.example.data.model.Goal
@@ -146,14 +152,15 @@ fun GoalManagerScreen(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = "02 // CAPITAL TARGETS",
-              style = MonospaceMicro,
-              color = SwissTextTertiary,
-              letterSpacing = 1.5.sp
+              text = "SAVINGS TARGETS",
+              style = SectionHeaderMedium,
+              color = SlateHeader,
+              fontWeight = FontWeight.SemiBold
             )
             Text(
-              text = "${goals.size} ACTIVE ALLOCATIONS",
-              style = MonospaceMicro,
+              text = "${goals.size} ACTIVE GOALS",
+              style = MaterialTheme.typography.labelSmall,
+              fontFamily = PlusJakartaSans,
               color = SwissDark,
               fontWeight = FontWeight.Bold
             )
@@ -164,17 +171,10 @@ fun GoalManagerScreen(
           Text(
             text = "Portfolio Goals",
             style = MaterialTheme.typography.headlineLarge,
+            fontFamily = PlusJakartaSans,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             letterSpacing = (-0.5).sp
-          )
-
-          Spacer(modifier = Modifier.height(10.dp))
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(0.75.dp)
-              .background(SwissHairline)
           )
         }
       }
@@ -185,17 +185,17 @@ fun GoalManagerScreen(
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-              .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp))
+              .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 3.dp)
               .padding(32.dp),
             contentAlignment = Alignment.Center
           ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
               Text(
-                text = "NO TARGETS CONFIGURED",
-                style = MonospaceMicro,
-                color = SwissTextTertiary,
-                letterSpacing = 1.2.sp
+                text = "NO TARGETS CONFIGURED YET",
+                style = SectionHeaderMedium,
+                color = SlateHeader,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
               )
               Spacer(modifier = Modifier.height(6.dp))
               Text(
@@ -234,16 +234,11 @@ fun GoalManagerScreen(
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-            .border(
-              width = if (goal.isPrimary) 1.25.dp else 0.75.dp,
-              color = if (goal.isPrimary) SwissDark else SwissBorder,
-              shape = RoundedCornerShape(10.dp)
-            )
+            .frostedGlass(shape = RoundedCornerShape(20.dp), elevation = 4.dp)
             .padding(18.dp)
             .testTag("goal_card_${goal.id}")
         ) {
-          // Top Row: Index + Title + Action Triggers
+          // Top Row: Index Badge + Title + Action Triggers
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -251,25 +246,40 @@ fun GoalManagerScreen(
           ) {
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
               modifier = Modifier.weight(1f)
             ) {
-              Text(
-                text = String.format(Locale.US, "%02d //", index + 1),
-                style = MonospaceMicro,
-                color = SwissTextTertiary
-              )
+              Box(
+                modifier = Modifier
+                  .size(24.dp)
+                  .clip(CircleShape)
+                  .background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+              ) {
+                Text(
+                  text = "${index + 1}",
+                  style = MaterialTheme.typography.labelSmall,
+                  fontFamily = PlusJakartaSans,
+                  fontWeight = FontWeight.Bold,
+                  color = SlateHeader,
+                  fontSize = 11.sp
+                )
+              }
 
               if (goal.isPrimary) {
                 Box(
                   modifier = Modifier
-                    .background(SwissCrimsonLight, RoundedCornerShape(3.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SwissCrimsonLight)
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                   Text(
                     text = "PRIMARY",
-                    style = MonospaceMicro,
-                    color = SwissCrimson
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = PlusJakartaSans,
+                    color = SwissCrimson,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
                   )
                 }
               }
@@ -277,6 +287,7 @@ fun GoalManagerScreen(
               Text(
                 text = goal.title,
                 style = MaterialTheme.typography.titleMedium,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1

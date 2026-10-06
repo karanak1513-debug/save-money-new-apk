@@ -148,3 +148,21 @@ val MonospaceMicro = TextStyle(
   lineHeight = 14.sp,
   letterSpacing = 0.8.sp
 )
+
+// Modern Human Typography Styles (Plus Jakarta Sans)
+val HeroBalanceExtraBold = TextStyle(
+  fontFamily = PlusJakartaSans,
+  fontWeight = FontWeight.ExtraBold,
+  fontSize = 32.sp,
+  lineHeight = 38.sp,
+  letterSpacing = (-0.8).sp
+)
+
+val SectionHeaderMedium = TextStyle(
+  fontFamily = PlusJakartaSans,
+  fontWeight = FontWeight.Medium,
+  fontSize = 13.sp,
+  lineHeight = 18.sp,
+  letterSpacing = 0.4.sp,
+  color = SlateHeader
+)

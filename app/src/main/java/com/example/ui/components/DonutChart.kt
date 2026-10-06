@@ -43,6 +43,9 @@ import com.example.ui.theme.ChannelOther
 import com.example.ui.theme.ChannelUpi
 import com.example.ui.theme.MonospaceHeadline
 import com.example.ui.theme.MonospaceMicro
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissDark
@@ -61,28 +64,29 @@ fun DonutBreakdownChart(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
-      .padding(18.dp)
+      .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 4.dp)
+      .padding(20.dp)
       .testTag("donut_chart_container")
   ) {
-    // Editorial Header
+    // Section Header
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
       Text(
-        text = "02 // LIQUIDITY DISTRIBUTION",
-        style = MonospaceMicro,
-        color = SwissTextTertiary,
-        letterSpacing = 1.2.sp
+        text = "LIQUIDITY DISTRIBUTION",
+        style = SectionHeaderMedium,
+        color = SlateHeader,
+        fontWeight = FontWeight.SemiBold
       )
       Text(
         text = "CHANNELS",
-        style = MonospaceMicro,
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = PlusJakartaSans,
         color = SwissDark,
-        fontWeight = FontWeight.Bold
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 0.5.sp
       )
     }
 

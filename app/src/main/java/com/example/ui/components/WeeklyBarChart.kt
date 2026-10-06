@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +37,9 @@ import com.example.data.model.CurrencyFormatter
 import com.example.data.model.DailyBarData
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissDark
@@ -56,9 +60,8 @@ fun WeeklyBarChart(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
-      .padding(18.dp)
+      .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 4.dp)
+      .padding(20.dp)
       .testTag("weekly_bar_chart_container")
   ) {
     // Header
@@ -69,15 +72,16 @@ fun WeeklyBarChart(
     ) {
       Column {
         Text(
-          text = "03 // CAPITAL VELOCITY",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          letterSpacing = 1.2.sp
+          text = "WEEKLY CASHFLOW",
+          style = SectionHeaderMedium,
+          color = SlateHeader,
+          fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-          text = "Weekly Activity",
+          text = "Activity & Savings",
           style = MaterialTheme.typography.titleMedium,
+          fontFamily = PlusJakartaSans,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface
         )
@@ -86,16 +90,17 @@ fun WeeklyBarChart(
       Column(horizontalAlignment = Alignment.End) {
         Text(
           text = CurrencyFormatter.formatRupee(weeklyTotal),
-          style = MonospaceSmall,
+          style = MaterialTheme.typography.titleMedium,
+          fontFamily = PlusJakartaSans,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 14.sp
+          fontSize = 16.sp
         )
         Text(
           text = "7-DAY ROLLING",
-          style = MonospaceMicro,
-          color = SwissTextTertiary,
-          fontSize = 9.sp
+          style = SectionHeaderMedium,
+          fontSize = 10.sp,
+          color = SlateHeader
         )
       }
     }
@@ -175,27 +180,32 @@ fun WeeklyBarChart(
               .fillMaxWidth(),
             contentAlignment = Alignment.BottomCenter
           ) {
-            // Full height hairline track
+            // Full height track
             Box(
               modifier = Modifier
-                .width(6.dp)
+                .width(8.dp)
                 .fillMaxHeight()
-                .background(Color(0xFFF3F3F1), RoundedCornerShape(1.dp))
+                .background(Color(0x50E2E8F0), RoundedCornerShape(4.dp))
             )
 
-            // Active Swiss Pillar
+            // Active Frosted Pillar
             Box(
               modifier = Modifier
-                .width(6.dp)
+                .width(8.dp)
                 .fillMaxHeight(animFraction)
                 .background(
-                  color = when {
-                    item.isToday -> SwissCrimson
-                    isSelected -> SwissCrimson
-                    item.amount > 0 -> SwissDark
-                    else -> Color(0xFFE2E4E8)
+                  brush = when {
+                    item.isToday || isSelected -> Brush.verticalGradient(
+                      listOf(Color(0xFFF87171), SwissCrimson)
+                    )
+                    item.amount > 0 -> Brush.verticalGradient(
+                      listOf(Color(0xFF475569), SwissDark)
+                    )
+                    else -> Brush.verticalGradient(
+                      listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8))
+                    )
                   },
-                  shape = RoundedCornerShape(1.dp)
+                  shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
                 )
             )
           }

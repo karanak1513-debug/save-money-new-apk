@@ -85,21 +85,17 @@ import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissSlate
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
+import androidx.compose.ui.draw.clip
+import com.example.ui.components.ambientMeshBackground
+import com.example.ui.components.frostedGlass
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
+import com.example.ui.theme.GlassSurfaceMilky
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Redesigned Swiss Editorial Light Theme Dashboard:
- * - Palette: Pure White (#FFFFFF), Off-White canvas (#F9FAFB), Stark Black (#111827), Precision Crimson (#DC2626)
- * - Removed all fake manual "Quick Paste UPI / SMS" buttons or input boxes completely.
- * - Header: Greeting "Namaste, [User Name]" with sync status dot and a Privacy Blur toggle icon (blurs all balances on tap).
- * - Hero Goal Card: Monospaced balance, 3px razor crimson progress bar, and strictly padded 3-column pacing grid.
- * - Bucket Split: Segmented chips [ UPI: ₹... ] | [ Cash: ₹... ] | [ Other: ₹... ].
- * - Live Transaction Stream: Auto-captured stream showing source badge ([PhonePe], [GPay]), extracted merchant title,
- *   timestamp, and monospaced amounts (-₹450 in Crimson, +₹2,500 in Slate). Full swipe-to-delete.
- * - In-app check: If notification access is missing, shows clean, non-blocking banner linking to Settings.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -133,7 +129,7 @@ fun DashboardScreen(
   Box(
     modifier = modifier
       .fillMaxSize()
-      .background(Color(0xFFF9FAFB)) // Off-White canvas
+      .ambientMeshBackground()
       .testTag("dashboard_screen")
   ) {
     LazyColumn(
@@ -160,32 +156,39 @@ fun DashboardScreen(
                   .background(SwissCrimson, CircleShape)
               )
               Text(
-                text = "SANCHAY // CAPITAL TRACKER",
-                style = MonospaceMicro,
-                color = SwissTextTertiary,
-                letterSpacing = 1.5.sp
+                text = "SANCHAY",
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                color = SwissDark,
+                fontSize = 13.sp,
+                letterSpacing = 2.sp
+              )
+              Text(
+                text = "• Wealth Management",
+                style = SectionHeaderMedium,
+                fontSize = 11.sp,
+                color = SlateHeader
               )
             }
 
             // Right Actions: Privacy Blur Toggle & Settings
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
               // Privacy Blur Toggle Icon (blurs all balances on tap)
               IconButton(
                 onClick = onTogglePrivacyMode,
                 modifier = Modifier
-                  .size(36.dp)
-                  .background(Color(0xFFFFFFFF), RoundedCornerShape(6.dp))
-                  .border(1.dp, SwissBorder, RoundedCornerShape(6.dp))
+                  .size(38.dp)
+                  .frostedGlass(RoundedCornerShape(12.dp), elevation = 2.dp)
                   .testTag("privacy_blur_toggle_button")
               ) {
                 Icon(
                   imageVector = if (isPrivacyMode) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                   contentDescription = if (isPrivacyMode) "Show Balances" else "Hide Balances",
                   tint = if (isPrivacyMode) SwissCrimson else SwissDark,
-                  modifier = Modifier.size(17.dp)
+                  modifier = Modifier.size(18.dp)
                 )
               }
 
@@ -193,16 +196,15 @@ fun DashboardScreen(
               IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
-                  .size(36.dp)
-                  .background(Color(0xFFFFFFFF), RoundedCornerShape(6.dp))
-                  .border(1.dp, SwissBorder, RoundedCornerShape(6.dp))
+                  .size(38.dp)
+                  .frostedGlass(RoundedCornerShape(12.dp), elevation = 2.dp)
                   .testTag("settings_icon_button")
               ) {
                 Icon(
                   imageVector = Icons.Default.Tune,
                   contentDescription = "Settings",
                   tint = SwissDark,
-                  modifier = Modifier.size(17.dp)
+                  modifier = Modifier.size(18.dp)
                 )
               }
             }
@@ -224,7 +226,7 @@ fun DashboardScreen(
                 // Sync status dot
                 Box(
                   modifier = Modifier
-                    .size(6.dp)
+                    .size(7.dp)
                     .background(
                       if (isAuthenticated) SwissAlpineGreen else Color(0xFF9CA3AF),
                       CircleShape
@@ -232,11 +234,11 @@ fun DashboardScreen(
                 )
                 Text(
                   text = if (isAuthenticated) "CLOUD SYNCED" else "LOCAL LEDGER",
-                  style = MonospaceMicro,
-                  color = if (isAuthenticated) SwissAlpineGreen else SwissTextTertiary,
-                  fontSize = 9.sp,
+                  style = SectionHeaderMedium,
+                  color = if (isAuthenticated) SwissAlpineGreen else SlateHeader,
+                  fontSize = 10.sp,
                   fontWeight = FontWeight.Bold,
-                  letterSpacing = 1.sp
+                  letterSpacing = 0.5.sp
                 )
               }
 
@@ -245,38 +247,32 @@ fun DashboardScreen(
               Text(
                 text = "Namaste, ${userName.ifBlank { "Client" }}",
                 style = MaterialTheme.typography.headlineLarge,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold,
                 color = SwissDark,
-                letterSpacing = (-0.5).sp,
-                fontSize = 24.sp
+                letterSpacing = (-0.6).sp,
+                fontSize = 26.sp
               )
             }
 
             // Streak Counter Badge
             Box(
               modifier = Modifier
-                .background(SwissCrimsonLight, RoundedCornerShape(6.dp))
-                .border(1.dp, SwissCrimson.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
-                .padding(horizontal = 9.dp, vertical = 5.dp)
+                .frostedGlass(RoundedCornerShape(14.dp), elevation = 2.dp)
+                .background(SwissCrimsonLight.copy(alpha = 0.6f))
+                .padding(horizontal = 11.dp, vertical = 6.dp)
                 .testTag("streak_badge")
             ) {
               Text(
                 text = if (dailyStreak > 0) "🔥 ${dailyStreak}D STREAK" else "🔥 0D STREAK",
-                style = MonospaceMicro,
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = PlusJakartaSans,
                 color = SwissCrimson,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
               )
             }
           }
-
-          Spacer(modifier = Modifier.height(14.dp))
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(1.dp)
-              .background(SwissHairline)
-          )
         }
       }
 
@@ -286,9 +282,8 @@ fun DashboardScreen(
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .background(Color(0xFFFFFFFF), RoundedCornerShape(8.dp))
-              .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-              .padding(14.dp)
+              .frostedGlass(shape = RoundedCornerShape(20.dp), elevation = 3.dp)
+              .padding(16.dp)
               .testTag("notification_permission_banner")
           ) {
             Row(
@@ -298,55 +293,60 @@ fun DashboardScreen(
             ) {
               Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
               ) {
                 Box(
                   modifier = Modifier
-                    .size(32.dp)
-                    .background(SwissCrimsonLight, RoundedCornerShape(6.dp)),
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SwissCrimsonLight),
                   contentAlignment = Alignment.Center
                 ) {
                   Icon(
                     imageVector = Icons.Default.NotificationsActive,
                     contentDescription = null,
                     tint = SwissCrimson,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                   )
                 }
 
                 Column {
                   Text(
-                    text = "AUTOMATIC UPI TRACKER",
-                    style = MonospaceMicro,
-                    color = SwissDark,
+                    text = "AUTOMATIC UPI INTERCEPTION",
+                    style = SectionHeaderMedium,
+                    color = SlateHeader,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
+                    fontSize = 11.sp,
+                    letterSpacing = 0.6.sp
                   )
+                  Spacer(modifier = Modifier.height(2.dp))
                   Text(
                     text = "Grant notification access to intercept PhonePe, GPay, Paytm & bank SMS.",
                     style = MaterialTheme.typography.bodySmall,
                     color = SwissTextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
                   )
                 }
               }
 
-              Spacer(modifier = Modifier.width(8.dp))
+              Spacer(modifier = Modifier.width(10.dp))
 
               Box(
                 modifier = Modifier
-                  .background(SwissDark, RoundedCornerShape(4.dp))
+                  .clip(RoundedCornerShape(12.dp))
+                  .background(SwissDark)
                   .clickable {
                     UpiNotificationService.openNotificationListenerSettings(context)
                   }
-                  .padding(horizontal = 10.dp, vertical = 7.dp)
+                  .padding(horizontal = 14.dp, vertical = 8.dp)
                   .testTag("enable_upi_listener_button")
               ) {
                 Text(
                   text = "ENABLE",
-                  style = MonospaceMicro,
+                  style = MaterialTheme.typography.labelSmall,
+                  fontFamily = PlusJakartaSans,
                   color = Color.White,
                   fontWeight = FontWeight.Bold
                 )
@@ -371,16 +371,16 @@ fun DashboardScreen(
       item {
         Column(modifier = Modifier.fillMaxWidth()) {
           Text(
-            text = "02 // BUCKET SPLIT",
-            style = MonospaceMicro,
-            color = SwissTextTertiary,
-            letterSpacing = 1.2.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
+            text = "Capital by Channel",
+            style = SectionHeaderMedium,
+            color = SlateHeader,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 10.dp)
           )
 
           Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
           ) {
             channelBreakdown.forEach { item ->
               val indicatorColor = when (item.channel) {
@@ -392,35 +392,37 @@ fun DashboardScreen(
               Box(
                 modifier = Modifier
                   .weight(1f)
-                  .background(Color(0xFFFFFFFF), RoundedCornerShape(6.dp))
-                  .border(1.dp, SwissBorder, RoundedCornerShape(6.dp))
+                  .frostedGlass(shape = RoundedCornerShape(16.dp), elevation = 2.dp)
                   .clickable { onChannelFilterClick(item.channel) }
-                  .padding(horizontal = 10.dp, vertical = 10.dp)
+                  .padding(horizontal = 12.dp, vertical = 12.dp)
                   .testTag("bucket_chip_${item.channel.name.lowercase()}"),
                 contentAlignment = Alignment.Center
               ) {
                 Row(
                   verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.spacedBy(6.dp)
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                   Box(
                     modifier = Modifier
-                      .size(6.dp)
+                      .size(8.dp)
                       .background(indicatorColor, CircleShape)
                   )
                   Column {
                     Text(
                       text = item.channel.displayName.uppercase(),
-                      style = MonospaceMicro,
-                      color = SwissTextSecondary,
-                      fontSize = 9.sp
+                      style = SectionHeaderMedium,
+                      fontSize = 10.sp,
+                      color = SlateHeader,
+                      fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                       text = if (isPrivacyMode) "₹••••" else CurrencyFormatter.formatRupee(item.amount),
-                      style = MonospaceSmall,
+                      style = MaterialTheme.typography.titleSmall,
+                      fontFamily = PlusJakartaSans,
                       fontWeight = FontWeight.Bold,
                       color = SwissDark,
-                      fontSize = 11.sp,
+                      fontSize = 13.sp,
                       maxLines = 1
                     )
                   }
@@ -457,26 +459,27 @@ fun DashboardScreen(
           ) {
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
               Box(
                 modifier = Modifier
-                  .size(6.dp)
-                  .background(SwissDark, CircleShape)
+                  .size(7.dp)
+                  .background(SwissCrimson, CircleShape)
               )
               Text(
-                text = "03 // LIVE TRANSACTION STREAM",
-                style = MonospaceMicro,
-                color = SwissTextTertiary,
-                letterSpacing = 1.2.sp
+                text = "LIVE TRANSACTION STREAM",
+                style = SectionHeaderMedium,
+                color = SlateHeader,
+                fontWeight = FontWeight.SemiBold
               )
             }
 
             Text(
               text = "SWIPE TO DELETE",
-              style = MonospaceMicro,
-              color = SwissTextTertiary,
-              fontSize = 9.sp
+              style = MaterialTheme.typography.labelSmall,
+              fontFamily = PlusJakartaSans,
+              color = SlateHeader,
+              fontSize = 10.sp
             )
           }
 
@@ -486,21 +489,21 @@ fun DashboardScreen(
             Box(
               modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFFFFFFF), RoundedCornerShape(8.dp))
-                .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-                .padding(24.dp),
+                .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 3.dp)
+                .padding(28.dp),
               contentAlignment = Alignment.Center
             ) {
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                  text = "NO TRANSACTIONS CAPTURED",
-                  style = MonospaceMicro,
-                  color = SwissTextTertiary,
-                  letterSpacing = 1.2.sp
+                  text = "NO TRANSACTIONS CAPTURED YET",
+                  style = SectionHeaderMedium,
+                  color = SlateHeader,
+                  fontWeight = FontWeight.Bold,
+                  letterSpacing = 0.8.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                  text = "Automatic listener will capture transactions from PhonePe, GPay, Paytm, and SMS.",
+                  text = "Automatic listener will capture transactions from PhonePe, GPay, Paytm, and bank SMS.",
                   style = MaterialTheme.typography.bodySmall,
                   color = SwissTextSecondary,
                   fontSize = 12.sp,
@@ -512,8 +515,7 @@ fun DashboardScreen(
             Column(
               modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFFFFFFF), RoundedCornerShape(8.dp))
-                .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+                .frostedGlass(shape = RoundedCornerShape(24.dp), elevation = 4.dp)
             ) {
               val displayList = recentTransactions.take(8)
               displayList.forEachIndexed { index, tx ->
@@ -555,8 +557,8 @@ fun DashboardScreen(
                   Row(
                     modifier = Modifier
                       .fillMaxWidth()
-                      .background(Color(0xFFFFFFFF))
-                      .padding(horizontal = 14.dp, vertical = 12.dp)
+                      .background(if (index % 2 == 0) Color(0x60FFFFFF) else Color(0x35FFFFFF))
+                      .padding(horizontal = 16.dp, vertical = 14.dp)
                       .testTag("stream_row_${tx.id}"),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -570,13 +572,15 @@ fun DashboardScreen(
                       // Source Badge: [PhonePe], [GPay], etc.
                       Box(
                         modifier = Modifier
-                          .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
-                          .border(1.dp, SwissBorder, RoundedCornerShape(4.dp))
-                          .padding(horizontal = 6.dp, vertical = 3.dp)
+                          .clip(RoundedCornerShape(8.dp))
+                          .background(Color(0xFFF1F5F9))
+                          .border(0.75.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                          .padding(horizontal = 8.dp, vertical = 4.dp)
                       ) {
                         Text(
                           text = sourceLabel.uppercase(),
-                          style = MonospaceMicro,
+                          style = MaterialTheme.typography.labelSmall,
+                          fontFamily = PlusJakartaSans,
                           color = SwissDark,
                           fontSize = 9.sp,
                           fontWeight = FontWeight.Bold

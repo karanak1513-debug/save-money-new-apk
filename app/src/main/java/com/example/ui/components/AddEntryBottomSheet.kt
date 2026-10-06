@@ -58,6 +58,9 @@ import com.example.service.ExpenseClassifier
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
 import com.example.ui.theme.ChannelUpi
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SectionHeaderMedium
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.MonospaceHeadline
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
@@ -118,14 +121,16 @@ fun AddEntryBottomSheet(
       ) {
         Column {
           Text(
-            text = "01 // LOG CAPITAL ENTRY",
-            style = MonospaceMicro,
-            color = SwissCrimson,
-            letterSpacing = 1.2.sp
+            text = "NEW ENTRY",
+            style = SectionHeaderMedium,
+            color = SlateHeader,
+            fontWeight = FontWeight.SemiBold
           )
+          Spacer(modifier = Modifier.height(2.dp))
           Text(
-            text = "Record Contribution",
+            text = "Record Transaction",
             style = MaterialTheme.typography.headlineMedium,
+            fontFamily = PlusJakartaSans,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
           )
@@ -547,9 +552,10 @@ fun AddEntryBottomSheet(
           .testTag("save_entry_button")
       ) {
         Text(
-          text = "RECORD CAPITAL ENTRY",
-          style = MonospaceMicro,
-          letterSpacing = 1.2.sp
+          text = "Record Transaction",
+          fontFamily = PlusJakartaSans,
+          fontWeight = FontWeight.SemiBold,
+          fontSize = 14.sp
         )
       }
 

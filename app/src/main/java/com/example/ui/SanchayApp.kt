@@ -44,12 +44,22 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.AddEntryBottomSheet
+import com.example.ui.components.FrostedBottomNavigationBar
 import com.example.ui.components.SettingsModal
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GoalManagerScreen
 import com.example.ui.screens.HistoryLedgerScreen
 import com.example.ui.screens.SplashScreen
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import com.example.ui.components.ambientMeshBackground
+import com.example.ui.theme.GlassBorderBottom
+import com.example.ui.theme.GlassBorderTop
+import com.example.ui.theme.GlassSurfaceMilky
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SlateHeader
 import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.SanchayTheme
 import com.example.ui.theme.SwissBorder
@@ -160,57 +170,33 @@ fun SanchayAppContent(
 
           Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = Color.Transparent,
             bottomBar = {
-              Column(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .background(MaterialTheme.colorScheme.surface)
-                  .navigationBarsPadding()
-                  .border(0.75.dp, SwissBorder)
-              ) {
-                Row(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                  horizontalArrangement = Arrangement.SpaceAround,
-                  verticalAlignment = Alignment.CenterVertically
-                ) {
-                  // Tab 1: Dashboard
-                  SwissNavItem(
-                    title = "Cockpit",
-                    isSelected = currentTab == NavigationTab.DASHBOARD,
-                    icon = Icons.Default.Home,
-                    onClick = { viewModel.setTab(NavigationTab.DASHBOARD) },
-                    testTag = "nav_tab_dashboard"
-                  )
-
-                  // Tab 2: Goals
-                  SwissNavItem(
-                    title = "Targets",
-                    isSelected = currentTab == NavigationTab.GOALS,
-                    icon = Icons.Default.Flag,
-                    onClick = { viewModel.setTab(NavigationTab.GOALS) },
-                    testTag = "nav_tab_goals"
-                  )
-
-                  // Tab 3: Ledger
-                  SwissNavItem(
-                    title = "Ledger",
-                    isSelected = currentTab == NavigationTab.LEDGER,
-                    icon = Icons.AutoMirrored.Filled.ListAlt,
-                    onClick = { viewModel.setTab(NavigationTab.LEDGER) },
-                    testTag = "nav_tab_ledger"
-                  )
-                }
-              }
+              FrostedBottomNavigationBar(
+                currentTab = currentTab,
+                onTabSelected = { tab -> viewModel.setTab(tab) }
+              )
             },
             floatingActionButton = {
-              // Minimalist Square Floating Action Button (+)
+              // Luxury Frosted Squircle Floating Action Button (+)
               Box(
                 modifier = Modifier
-                  .size(46.dp)
-                  .background(SwissDark, RoundedCornerShape(6.dp))
+                  .size(50.dp)
+                  .shadow(6.dp, RoundedCornerShape(16.dp), ambientColor = Color(0x30111827), spotColor = Color(0x20111827))
+                  .clip(RoundedCornerShape(16.dp))
+                  .background(
+                    Brush.verticalGradient(
+                      listOf(
+                        Color(0xFF334155),
+                        SwissDark
+                      )
+                    )
+                  )
+                  .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x60FFFFFF), Color(0x2094A3B8))),
+                    RoundedCornerShape(16.dp)
+                  )
                   .clickable { showAddEntrySheet = true }
                   .testTag("global_add_entry_fab"),
                 contentAlignment = Alignment.Center
@@ -218,8 +204,8 @@ fun SanchayAppContent(
                 Text(
                   text = "+",
                   color = Color.White,
-                  fontSize = 24.sp,
-                  fontWeight = FontWeight.Light
+                  fontSize = 26.sp,
+                  fontWeight = FontWeight.Normal
                 )
               }
             }
@@ -310,49 +296,6 @@ fun SanchayAppContent(
           }
         }
       }
-    }
-  }
-}
-
-@Composable
-private fun SwissNavItem(
-  title: String,
-  isSelected: Boolean,
-  icon: androidx.compose.ui.graphics.vector.ImageVector,
-  onClick: () -> Unit,
-  testTag: String
-) {
-  Column(
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.Center,
-    modifier = Modifier
-      .clickable { onClick() }
-      .padding(horizontal = 18.dp, vertical = 6.dp)
-      .testTag(testTag)
-  ) {
-    Icon(
-      imageVector = icon,
-      contentDescription = title,
-      tint = if (isSelected) SwissDark else SwissTextTertiary,
-      modifier = Modifier.size(19.dp)
-    )
-    Spacer(modifier = Modifier.height(3.dp))
-    Text(
-      text = title.uppercase(),
-      style = MonospaceMicro,
-      color = if (isSelected) SwissDark else SwissTextTertiary,
-      fontSize = 9.sp,
-      letterSpacing = 1.sp
-    )
-    if (isSelected) {
-      Box(
-        modifier = Modifier
-          .padding(top = 3.dp)
-          .size(width = 16.dp, height = 2.dp)
-          .background(SwissCrimson)
-      )
-    } else {
-      Spacer(modifier = Modifier.height(5.dp))
     }
   }
 }
