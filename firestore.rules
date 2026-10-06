@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/goals/{goalId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.targetAmount is number
+        && request.resource.data.targetAmount >= 0;
+      allow update: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.targetAmount is number;
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.amount is number
+        && request.resource.data.channel in ['UPI', 'CASH', 'OTHER']
+        && request.resource.data.note is string;
+      allow update: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.amount is number;
+      allow delete: if isOwner(userId);
+    }
+  }
+}

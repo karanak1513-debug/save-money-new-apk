@@ -156,4 +156,40 @@ class SanchayRepository(private val dao: SanchayDao) {
     }
     return result
   }
+
+  fun calculateStreak(transactions: List<TransactionItem>): Int {
+    val depositDates = transactions
+      .filter { it.amount > 0 }
+      .map { it.dateEpochDay }
+      .toSet()
+
+    if (depositDates.isEmpty()) return 0
+
+    val today = LocalDate.now().toEpochDay()
+    var currentStreak = 0
+
+    var checkDay = if (depositDates.contains(today)) {
+      today
+    } else if (depositDates.contains(today - 1)) {
+      today - 1
+    } else {
+      return 0
+    }
+
+    while (depositDates.contains(checkDay)) {
+      currentStreak++
+      checkDay--
+    }
+
+    return currentStreak
+  }
+
+  suspend fun restoreBackup(payload: BackupPayload) {
+    if (payload.goals.isNotEmpty()) {
+      dao.insertGoals(payload.goals.map { GoalEntity.fromDomain(it) })
+    }
+    if (payload.transactions.isNotEmpty()) {
+      dao.insertTransactions(payload.transactions.map { TransactionEntity.fromDomain(it) })
+    }
+  }
 }

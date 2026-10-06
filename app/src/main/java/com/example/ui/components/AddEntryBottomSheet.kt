@@ -19,7 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -327,10 +331,13 @@ fun AddEntryBottomSheet(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Target Goal Selector
-      if (goals.isNotEmpty()) {
+      // Feature 3: Goal Allocation Dropdown
+      var isGoalDropdownExpanded by remember { mutableStateOf(false) }
+      val selectedGoal = goals.find { it.id == linkedGoalId }
+
+      Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-          text = "ALLOCATE TO GOAL",
+          text = "ASSIGN TO GOAL (OPTIONAL)",
           style = MaterialTheme.typography.labelSmall,
           fontWeight = FontWeight.Bold,
           letterSpacing = 1.sp,
@@ -338,27 +345,125 @@ fun AddEntryBottomSheet(
           fontSize = 10.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
-        LazyRow(
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          items(goals) { g ->
-            val isSelected = linkedGoalId == g.id
-            Box(
-              modifier = Modifier
-                .background(
-                  color = if (isSelected) SwissDark else Color(0xFFF9FAFB),
-                  shape = RoundedCornerShape(6.dp)
-                )
-                .border(1.dp, if (isSelected) SwissDark else SwissBorder, RoundedCornerShape(6.dp))
-                .clickable { linkedGoalId = g.id }
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
+              .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+              .clickable { isGoalDropdownExpanded = !isGoalDropdownExpanded }
+              .padding(horizontal = 14.dp, vertical = 12.dp)
+              .testTag("goal_allocation_dropdown"),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = g.title,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                text = selectedGoal?.title ?: "None (General Ledger / Unassigned)",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (selectedGoal != null) MaterialTheme.colorScheme.onSurface else SwissTextSecondary
+              )
+              if (selectedGoal != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  Box(
+                    modifier = Modifier
+                      .weight(1f)
+                      .height(4.dp)
+                      .background(Color(0xFFE5E7EB), RoundedCornerShape(2.dp))
+                  ) {
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth(selectedGoal.progressFraction)
+                        .height(4.dp)
+                        .background(SwissCrimson, RoundedCornerShape(2.dp))
+                    )
+                  }
+                  Text(
+                    text = "${CurrencyFormatter.formatRupee(selectedGoal.savedAmount)} / ${CurrencyFormatter.formatRupee(selectedGoal.targetAmount)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SwissTextSecondary,
+                    fontSize = 10.sp
+                  )
+                }
+              }
+            }
+
+            Icon(
+              imageVector = if (isGoalDropdownExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+              contentDescription = "Toggle Goal Dropdown",
+              tint = SwissDark
+            )
+          }
+
+          DropdownMenu(
+            expanded = isGoalDropdownExpanded,
+            onDismissRequest = { isGoalDropdownExpanded = false },
+            modifier = Modifier
+              .background(MaterialTheme.colorScheme.surface)
+              .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+          ) {
+            DropdownMenuItem(
+              text = {
+                Text(
+                  text = "None (General Ledger / Unassigned)",
+                  style = MaterialTheme.typography.bodyMedium,
+                  color = SwissTextSecondary
+                )
+              },
+              onClick = {
+                linkedGoalId = null
+                isGoalDropdownExpanded = false
+              }
+            )
+
+            goals.forEach { g ->
+              DropdownMenuItem(
+                text = {
+                  Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                      Text(
+                        text = g.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (linkedGoalId == g.id) FontWeight.Bold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface
+                      )
+                      if (g.isPrimary) {
+                        Box(
+                          modifier = Modifier
+                            .background(SwissCrimsonLight, RoundedCornerShape(3.dp))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                          Text(
+                            text = "PRIMARY",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SwissCrimson,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                          )
+                        }
+                      }
+                    }
+                    Text(
+                      text = "${CurrencyFormatter.formatRupee(g.savedAmount)} / ${CurrencyFormatter.formatRupee(g.targetAmount)}",
+                      style = MaterialTheme.typography.labelSmall,
+                      color = SwissTextSecondary,
+                      fontSize = 10.sp
+                    )
+                  }
+                },
+                onClick = {
+                  linkedGoalId = g.id
+                  isGoalDropdownExpanded = false
+                }
               )
             }
           }

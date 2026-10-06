@@ -4,20 +4,29 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.R
+import com.example.data.auth.AuthManager
 import com.example.data.local.SanchayDatabase
 import com.example.data.model.Channel
 import com.example.data.model.ChannelBreakdown
+import com.example.data.model.CurrencyFormatter
 import com.example.data.model.DailyBarData
 import com.example.data.model.Goal
 import com.example.data.model.PacingInfo
 import com.example.data.model.TransactionItem
+import com.example.data.repository.BackupManager
 import com.example.data.repository.SanchayRepository
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 enum class NavigationTab(val title: String) {
   DASHBOARD("Dashboard"),
@@ -47,6 +56,14 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
     scope = viewModelScope,
     started = SharingStarted.WhileSubscribed(5000),
     initialValue = emptyList()
+  )
+
+  val dailyStreak: StateFlow<Int> = transactions.map { txs ->
+    repository.calculateStreak(txs)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = 0
   )
 
   val pacingInfo: StateFlow<PacingInfo> = primaryGoal.combine(goals) { primary, allGoals ->
@@ -91,6 +108,32 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   private val _isDarkTheme = MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
   val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
+  private val _isGuestMode = MutableStateFlow(prefs.getBoolean("is_guest_mode", false))
+  val isGuestMode: StateFlow<Boolean> = _isGuestMode
+
+  val authUser: StateFlow<FirebaseUser?> = AuthManager.currentUserState
+
+  fun setGuestMode(enabled: Boolean) {
+    _isGuestMode.value = enabled
+    prefs.edit().putBoolean("is_guest_mode", enabled).apply()
+  }
+
+  fun onUserAuthenticated() {
+    setGuestMode(false)
+    val user = AuthManager.currentUser
+    val name = user?.displayName
+      ?: user?.email?.substringBefore("@")
+      ?: user?.phoneNumber
+    if (!name.isNullOrBlank()) {
+      updateUserName(name)
+    }
+  }
+
+  fun signOut() {
+    AuthManager.signOut()
+    setGuestMode(false)
+  }
+
   private val _currentTab = MutableStateFlow(NavigationTab.DASHBOARD)
   val currentTab: StateFlow<NavigationTab> = _currentTab
 
@@ -114,6 +157,25 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   fun toggleDarkTheme(isDark: Boolean) {
     _isDarkTheme.value = isDark
     prefs.edit().putBoolean("is_dark_theme", isDark).apply()
+  }
+
+  /**
+   * Feature 1: Quick-Add Preset Chips
+   * Immediately logs amount into selected active goal with today's timestamp.
+   */
+  fun quickAddPreset(amount: Double) {
+    val today = LocalDate.now()
+    val targetGoalId = primaryGoal.value?.id ?: goals.value.firstOrNull()?.id
+    val item = TransactionItem(
+      goalId = targetGoalId,
+      amount = amount,
+      channel = Channel.CASH,
+      note = "Quick Save (+${CurrencyFormatter.formatRupee(amount)})",
+      timestamp = System.currentTimeMillis(),
+      dateEpochDay = today.toEpochDay(),
+      isConfirmed = true
+    )
+    addTransaction(item)
   }
 
   fun addTransaction(item: TransactionItem) {
@@ -154,6 +216,90 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   fun setPrimaryGoal(goalId: Long) {
     viewModelScope.launch {
       repository.setPrimaryGoal(goalId)
+    }
+  }
+
+  /**
+   * Feature 4: 1-Click Backup & Restore (JSON)
+   */
+  fun exportBackupJson(): String {
+    return BackupManager.exportToJson(
+      userName = userName.value,
+      goals = goals.value,
+      transactions = transactions.value
+    )
+  }
+
+  fun importBackupJson(jsonStr: String): Boolean {
+    val payload = BackupManager.importFromJson(jsonStr) ?: return false
+    viewModelScope.launch {
+      repository.restoreBackup(payload)
+      if (payload.userName.isNotBlank()) {
+        updateUserName(payload.userName)
+      }
+    }
+    return true
+  }
+
+  /**
+   * Cloud Sync with provisioned Firebase Firestore database
+   */
+  fun syncToFirestore(onResult: (Boolean, String) -> Unit) {
+    val currentUser = AuthManager.currentUser
+    if (currentUser == null) {
+      onResult(false, "Please sign in to your Google, Email, or Phone account to sync with Firebase Cloud.")
+      return
+    }
+    viewModelScope.launch {
+      try {
+        val app = FirebaseApp.getInstance()
+        val dbId = getApplication<Application>().getString(R.string.firestore_database_id)
+        val firestore = FirebaseFirestore.getInstance(app, dbId)
+
+        val batch = firestore.batch()
+        val currentGoals = goals.value
+        val currentTxs = transactions.value
+        val uid = currentUser.uid
+
+        for (goal in currentGoals) {
+          val docRef = firestore.collection("users").document(uid).collection("goals").document(goal.id.toString())
+          val data = mapOf(
+            "userId" to uid,
+            "title" to goal.title,
+            "targetAmount" to goal.targetAmount,
+            "savedAmount" to goal.savedAmount,
+            "deadlineEpochDay" to goal.deadlineEpochDay,
+            "frequencyPref" to goal.frequencyPref.name,
+            "isPrimary" to goal.isPrimary,
+            "createdAt" to com.google.firebase.Timestamp.now()
+          )
+          batch.set(docRef, data)
+        }
+
+        for (tx in currentTxs) {
+          val docRef = firestore.collection("users").document(uid).collection("transactions").document(tx.id.toString())
+          val data = mapOf(
+            "userId" to uid,
+            "goalId" to (tx.goalId?.toString() ?: ""),
+            "amount" to tx.amount,
+            "channel" to tx.channel.name,
+            "note" to tx.note,
+            "dateEpochDay" to tx.dateEpochDay,
+            "createdAt" to com.google.firebase.Timestamp.now()
+          )
+          batch.set(docRef, data)
+        }
+
+        batch.commit()
+          .addOnSuccessListener {
+            onResult(true, "Cloud sync completed successfully (${currentGoals.size} goals, ${currentTxs.size} entries)")
+          }
+          .addOnFailureListener { e ->
+            onResult(false, e.localizedMessage ?: "Sync error")
+          }
+      } catch (e: Exception) {
+        onResult(false, e.localizedMessage ?: "Firestore initialization error")
+      }
     }
   }
 }

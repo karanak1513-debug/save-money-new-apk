@@ -24,8 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +53,7 @@ import com.example.ui.theme.ChannelUpi
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
+import com.example.ui.theme.SwissCrimsonBorder
 import com.example.ui.theme.SwissCrimsonLight
 import com.example.ui.theme.SwissDark
 import com.example.ui.theme.SwissTextSecondary
@@ -63,11 +62,13 @@ import com.example.ui.theme.SwissTextTertiary
 @Composable
 fun DashboardScreen(
   userName: String,
+  dailyStreak: Int,
   primaryGoal: Goal?,
   pacingInfo: PacingInfo,
   channelBreakdown: List<ChannelBreakdown>,
   weeklyBars: List<DailyBarData>,
   hasTransactions: Boolean,
+  onQuickAddPreset: (Double) -> Unit,
   onOpenQuickPaste: () -> Unit,
   onOpenSettings: () -> Unit,
   onOpenAddEntry: () -> Unit,
@@ -116,7 +117,7 @@ fun DashboardScreen(
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-      // 1. Header: Greeting & Quick Actions
+      // 1. Header: Greeting, Streak Badge & Quick Actions
       item {
         Row(
           modifier = Modifier
@@ -131,7 +132,7 @@ fun DashboardScreen(
           ) {
             Box(
               modifier = Modifier
-                .size(38.dp)
+                .size(40.dp)
                 .background(SwissDark, CircleShape)
                 .border(1.dp, SwissBorder, CircleShape),
               contentAlignment = Alignment.Center
@@ -145,13 +146,36 @@ fun DashboardScreen(
             }
 
             Column {
-              Text(
-                text = "Namaste, $userName",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                letterSpacing = (-0.3).sp
-              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                Text(
+                  text = "Namaste, $userName",
+                  style = MaterialTheme.typography.headlineMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onSurface,
+                  letterSpacing = (-0.3).sp
+                )
+
+                // Feature 2: Daily Streak Counter Badge
+                Box(
+                  modifier = Modifier
+                    .background(SwissCrimsonLight, RoundedCornerShape(12.dp))
+                    .border(1.dp, SwissCrimsonBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .testTag("streak_badge")
+                ) {
+                  Text(
+                    text = if (dailyStreak > 0) "🔥 $dailyStreak Day Streak" else "🔥 0 Day Streak",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SwissCrimson,
+                    fontSize = 11.sp
+                  )
+                }
+              }
+
               Text(
                 text = "Minimalist Manual Savings Tracker",
                 style = MaterialTheme.typography.bodySmall,
@@ -175,6 +199,53 @@ fun DashboardScreen(
               tint = MaterialTheme.colorScheme.onSurface,
               modifier = Modifier.size(20.dp)
             )
+          }
+        }
+      }
+
+      // Feature 1: Quick-Add Preset Chips ([+ ₹100], [+ ₹500], [+ ₹1,000])
+      item {
+        Column(modifier = Modifier.fillMaxWidth()) {
+          Text(
+            text = "QUICK-ADD PRESETS",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp,
+            color = SwissTextTertiary,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+          )
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            val presets = listOf(
+              Pair(100.0, "+ ₹100"),
+              Pair(500.0, "+ ₹500"),
+              Pair(1000.0, "+ ₹1,000")
+            )
+
+            presets.forEach { (amount, label) ->
+              Box(
+                modifier = Modifier
+                  .weight(1f)
+                  .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                  .border(1.dp, SwissBorder, RoundedCornerShape(20.dp))
+                  .clickable { onQuickAddPreset(amount) }
+                  .padding(vertical = 10.dp)
+                  .testTag("quick_add_${amount.toInt()}"),
+                contentAlignment = Alignment.Center
+              ) {
+                Text(
+                  text = label,
+                  style = MonospaceSmall,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onSurface,
+                  fontSize = 13.sp
+                )
+              }
+            }
           }
         }
       }

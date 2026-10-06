@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Goal": {
+      "title": "Goal",
+      "description": "Savings goal entity for Sanchay user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "title": { "type": "string", "description": "Goal title" },
+        "targetAmount": { "type": "number", "description": "Target amount in Rupees" },
+        "savedAmount": { "type": "number", "description": "Currently saved amount" },
+        "deadlineEpochDay": { "type": "number", "description": "Target deadline as epoch day" },
+        "frequencyPref": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY"] },
+        "isPrimary": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "targetAmount", "savedAmount", "deadlineEpochDay", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Savings or debit entry in Sanchay ledger",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "goalId": { "type": "string", "description": "Associated goal ID or null" },
+        "amount": { "type": "number", "description": "Signed Rupee amount" },
+        "channel": { "type": "string", "enum": ["UPI", "CASH", "OTHER"] },
+        "note": { "type": "string", "description": "Transaction remark" },
+        "dateEpochDay": { "type": "number", "description": "Date in epoch days" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "channel", "note", "dateEpochDay", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/Goal" },
+      "description": "User savings targets"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "User ledger entries"
+    }
+  }
+}

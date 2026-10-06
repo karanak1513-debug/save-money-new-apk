@@ -137,4 +137,46 @@ class ExampleRobolectricTest {
 
     assertTrue("Second notification with same ref and amount should be detected as duplicate", DeduplicationManager.isDuplicate(bankSmsNotification))
   }
+
+  @Test
+  fun `backup manager exports and imports valid payload`() {
+    val goal = com.example.data.model.Goal(
+      id = 1L,
+      title = "Emergency Fund",
+      targetAmount = 50000.0,
+      savedAmount = 15000.0,
+      deadlineEpochDay = java.time.LocalDate.now().toEpochDay() + 60,
+      frequencyPref = com.example.data.model.FrequencyPref.WEEKLY,
+      isPrimary = true
+    )
+
+    val tx = com.example.data.model.TransactionItem(
+      id = 10L,
+      goalId = 1L,
+      amount = 500.0,
+      channel = com.example.data.model.Channel.UPI,
+      note = "Quick Save",
+      timestamp = System.currentTimeMillis(),
+      dateEpochDay = java.time.LocalDate.now().toEpochDay(),
+      isConfirmed = true
+    )
+
+    val json = com.example.data.repository.BackupManager.exportToJson(
+      userName = "Karan",
+      goals = listOf(goal),
+      transactions = listOf(tx)
+    )
+
+    assertTrue(json.contains("Emergency Fund"))
+    assertTrue(json.contains("50000"))
+
+    val imported = com.example.data.repository.BackupManager.importFromJson(json)
+    assertNotNull(imported)
+    assertEquals("Karan", imported!!.userName)
+    assertEquals(1, imported.goals.size)
+    assertEquals("Emergency Fund", imported.goals[0].title)
+    assertEquals(50000.0, imported.goals[0].targetAmount, 0.01)
+    assertEquals(1, imported.transactions.size)
+    assertEquals(500.0, imported.transactions[0].amount, 0.01)
+  }
 }
