@@ -2,6 +2,7 @@ package com.example.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.R
@@ -11,14 +12,22 @@ import com.example.data.model.Channel
 import com.example.data.model.ChannelBreakdown
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.DailyBarData
+import com.example.data.model.ExpenseCategory
 import com.example.data.model.Goal
+import com.example.data.model.GoalFeasibility
+import com.example.data.model.MicroLeakAlert
 import com.example.data.model.PacingInfo
 import com.example.data.model.TransactionItem
+import com.example.data.model.WeeklyAuditSummary
 import com.example.data.repository.BackupManager
 import com.example.data.repository.SanchayRepository
+import com.example.service.ExpenseClassifier
+import com.example.service.FinancialAnalyticsEngine
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +46,12 @@ enum class NavigationTab(val title: String) {
 class SanchayViewModel(application: Application) : AndroidViewModel(application) {
 
   private val prefs = application.getSharedPreferences("sanchay_prefs", Context.MODE_PRIVATE)
-  private val database = SanchayDatabase.getDatabase(application, viewModelScope)
+
+  val globalExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+    Log.e("SanchayViewModel", "Global coroutine exception caught: ${throwable.message}", throwable)
+  }
+
+  private val database = SanchayDatabase.getDatabase(application)
   private val repository = SanchayRepository(database.sanchayDao())
 
   val goals: StateFlow<List<Goal>> = repository.allGoals.stateIn(
@@ -82,6 +96,58 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
     )
   )
 
+  // 1. Dynamic Predictive Goal Feasibility (Run-Rate AI)
+  val goalFeasibility: StateFlow<GoalFeasibility> = combine(primaryGoal, transactions, pacingInfo) { primary, txs, pacing ->
+    FinancialAnalyticsEngine.calculateGoalFeasibility(primary, txs, pacing)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = GoalFeasibility(
+      scorePercent = 0,
+      isOnTrack = false,
+      statusBadgeText = "⚪ Analyzing Trailing Velocity...",
+      trailing14dVelocity = 0.0,
+      shortfallPerDay = 0.0,
+      probabilityPercent = 0
+    )
+  )
+
+  // 2. Micro-Leak / Anomaly Detection
+  val microLeakAlert: StateFlow<MicroLeakAlert> = combine(transactions, pacingInfo) { txs, pacing ->
+    FinancialAnalyticsEngine.detectMicroLeaks(txs, pacing)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = MicroLeakAlert(
+      isDetected = false,
+      microPercent = 0,
+      microTotal = 0.0,
+      delayedDays = 0,
+      transactionCount = 0,
+      badgeText = "",
+      weeklyOutflow = 0.0
+    )
+  )
+
+  // 3. Weekly Audit Brief (Executive Summary)
+  val weeklyAuditSummary: StateFlow<WeeklyAuditSummary> = combine(transactions, primaryGoal, pacingInfo) { txs, primary, pacing ->
+    FinancialAnalyticsEngine.generateWeeklyAudit(txs, primary, pacing)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = WeeklyAuditSummary(
+      totalInflow = 0.0,
+      totalOutflow = 0.0,
+      netSavings = 0.0,
+      biggestCategory = null,
+      biggestCategoryAmount = 0.0,
+      recommendedPaceAdjustment = 0.0,
+      recommendationText = "Auditing 7-day capital cadence...",
+      dateRangeLabel = "CURRENT 7-DAY CYCLE",
+      totalTransactionCount = 0
+    )
+  )
+
   val channelBreakdown: StateFlow<List<ChannelBreakdown>> = transactions.combine(goals) { txs, _ ->
     repository.calculateChannelBreakdown(txs)
   }.stateIn(
@@ -108,10 +174,32 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
   private val _isDarkTheme = MutableStateFlow(prefs.getBoolean("is_dark_theme", false))
   val isDarkTheme: StateFlow<Boolean> = _isDarkTheme
 
+  private val _isPrivacyMode = MutableStateFlow(prefs.getBoolean("is_privacy_mode", false))
+  val isPrivacyMode: StateFlow<Boolean> = _isPrivacyMode
+
+  fun togglePrivacyMode() {
+    val next = !_isPrivacyMode.value
+    _isPrivacyMode.value = next
+    prefs.edit().putBoolean("is_privacy_mode", next).apply()
+  }
+
+  // Default is false so unauthenticated users land on AuthScreen, but once authenticated or chosen guest mode, persistent
   private val _isGuestMode = MutableStateFlow(prefs.getBoolean("is_guest_mode", false))
   val isGuestMode: StateFlow<Boolean> = _isGuestMode
 
   val authUser: StateFlow<FirebaseUser?> = AuthManager.currentUserState
+  val isAuthReady: StateFlow<Boolean> = AuthManager.isAuthReady
+
+  init {
+    // Completely non-blocking background initialization on Dispatchers.IO
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.ensureDefaultGoalExists()
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to ensure default goal exists", e)
+      }
+    }
+  }
 
   fun setGuestMode(enabled: Boolean) {
     _isGuestMode.value = enabled
@@ -172,49 +260,80 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
       note = "Quick Save (+${CurrencyFormatter.formatRupee(amount)})",
       timestamp = System.currentTimeMillis(),
       dateEpochDay = today.toEpochDay(),
-      isConfirmed = true
+      isConfirmed = true,
+      category = ExpenseCategory.GENERAL.name
     )
     addTransaction(item)
   }
 
   fun addTransaction(item: TransactionItem) {
-    viewModelScope.launch {
-      repository.addTransaction(item)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        val classifiedCategory = if (item.category == ExpenseCategory.GENERAL.name || item.category.isBlank()) {
+          ExpenseClassifier.classify(item.merchantOrSender, item.note).name
+        } else {
+          item.category
+        }
+        val enrichedItem = item.copy(category = classifiedCategory)
+        repository.addTransaction(enrichedItem)
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to add transaction", e)
+      }
     }
   }
 
   fun deleteTransaction(item: TransactionItem) {
-    viewModelScope.launch {
-      repository.deleteTransaction(item)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.deleteTransaction(item)
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to delete transaction", e)
+      }
     }
   }
 
   fun clearAllTransactions() {
-    viewModelScope.launch {
-      repository.clearAllTransactions()
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.clearAllTransactions()
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to clear transactions", e)
+      }
     }
   }
 
   fun saveGoal(goal: Goal) {
-    viewModelScope.launch {
-      if (goal.id == 0L) {
-        val count = goals.value.size
-        repository.insertGoal(goal.copy(isPrimary = count == 0))
-      } else {
-        repository.updateGoal(goal)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        if (goal.id == 0L) {
+          val count = goals.value.size
+          repository.insertGoal(goal.copy(isPrimary = count == 0))
+        } else {
+          repository.updateGoal(goal)
+        }
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to save goal", e)
       }
     }
   }
 
   fun deleteGoal(goal: Goal) {
-    viewModelScope.launch {
-      repository.deleteGoal(goal)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.deleteGoal(goal)
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to delete goal", e)
+      }
     }
   }
 
   fun setPrimaryGoal(goalId: Long) {
-    viewModelScope.launch {
-      repository.setPrimaryGoal(goalId)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.setPrimaryGoal(goalId)
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to set primary goal", e)
+      }
     }
   }
 
@@ -231,10 +350,14 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
 
   fun importBackupJson(jsonStr: String): Boolean {
     val payload = BackupManager.importFromJson(jsonStr) ?: return false
-    viewModelScope.launch {
-      repository.restoreBackup(payload)
-      if (payload.userName.isNotBlank()) {
-        updateUserName(payload.userName)
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
+      try {
+        repository.restoreBackup(payload)
+        if (payload.userName.isNotBlank()) {
+          updateUserName(payload.userName)
+        }
+      } catch (e: Throwable) {
+        Log.e("SanchayViewModel", "Failed to restore backup", e)
       }
     }
     return true
@@ -249,9 +372,13 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
       onResult(false, "Please sign in to your Google, Email, or Phone account to sync with Firebase Cloud.")
       return
     }
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO + globalExceptionHandler) {
       try {
-        val app = FirebaseApp.getInstance()
+        val app = runCatching { FirebaseApp.getInstance() }.getOrNull()
+        if (app == null) {
+          onResult(false, "Firebase service is not initialized.")
+          return@launch
+        }
         val dbId = getApplication<Application>().getString(R.string.firestore_database_id)
         val firestore = FirebaseFirestore.getInstance(app, dbId)
 
@@ -283,6 +410,7 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
             "amount" to tx.amount,
             "channel" to tx.channel.name,
             "note" to tx.note,
+            "category" to tx.category,
             "dateEpochDay" to tx.dateEpochDay,
             "createdAt" to com.google.firebase.Timestamp.now()
           )
@@ -296,7 +424,7 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
           .addOnFailureListener { e ->
             onResult(false, e.localizedMessage ?: "Sync error")
           }
-      } catch (e: Exception) {
+      } catch (e: Throwable) {
         onResult(false, e.localizedMessage ?: "Firestore initialization error")
       }
     }

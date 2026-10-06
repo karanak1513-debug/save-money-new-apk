@@ -6,11 +6,14 @@ import com.example.data.local.TransactionEntity
 import com.example.data.model.Channel
 import com.example.data.model.ChannelBreakdown
 import com.example.data.model.DailyBarData
+import com.example.data.model.FrequencyPref
 import com.example.data.model.Goal
 import com.example.data.model.PacingInfo
 import com.example.data.model.TransactionItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -30,35 +33,53 @@ class SanchayRepository(private val dao: SanchayDao) {
     entities.map { it.toDomain() }
   }
 
-  suspend fun insertGoal(goal: Goal): Long {
-    return dao.insertGoal(GoalEntity.fromDomain(goal))
+  suspend fun ensureDefaultGoalExists() = withContext(Dispatchers.IO) {
+    if (dao.getGoalCount() == 0) {
+      val today = LocalDate.now()
+      val todayEpochDay = today.toEpochDay()
+      val primaryGoal = GoalEntity(
+        id = 1L,
+        title = "Reserve Target",
+        targetAmount = 100000.0,
+        savedAmount = 0.0,
+        deadlineEpochDay = todayEpochDay + 180,
+        frequencyPref = FrequencyPref.DAILY.name,
+        isPrimary = true,
+        createdAtEpochDay = todayEpochDay
+      )
+      dao.insertGoal(primaryGoal)
+    }
   }
 
-  suspend fun updateGoal(goal: Goal) {
+  suspend fun insertGoal(goal: Goal): Long = withContext(Dispatchers.IO) {
+    dao.insertGoal(GoalEntity.fromDomain(goal))
+  }
+
+  suspend fun updateGoal(goal: Goal) = withContext(Dispatchers.IO) {
     dao.updateGoal(GoalEntity.fromDomain(goal))
   }
 
-  suspend fun deleteGoal(goal: Goal) {
+  suspend fun deleteGoal(goal: Goal) = withContext(Dispatchers.IO) {
     dao.deleteGoal(GoalEntity.fromDomain(goal))
   }
 
-  suspend fun setPrimaryGoal(goalId: Long) {
+  suspend fun setPrimaryGoal(goalId: Long) = withContext(Dispatchers.IO) {
     dao.setPrimaryGoal(goalId)
   }
 
-  suspend fun addTransaction(item: TransactionItem) {
+  suspend fun addTransaction(item: TransactionItem) = withContext(Dispatchers.IO) {
     dao.addTransactionWithGoalUpdate(TransactionEntity.fromDomain(item))
   }
 
-  suspend fun updateTransaction(item: TransactionItem) {
+  suspend fun updateTransaction(item: TransactionItem) = withContext(Dispatchers.IO) {
     dao.updateTransaction(TransactionEntity.fromDomain(item))
   }
 
-  suspend fun deleteTransaction(item: TransactionItem) {
+  suspend fun deleteTransaction(item: TransactionItem) = withContext(Dispatchers.IO) {
     dao.removeTransactionWithGoalUpdate(TransactionEntity.fromDomain(item))
   }
 
-  suspend fun clearAllTransactions() {
+  suspend fun clearAllTransactions() = withContext(Dispatchers.IO) {
     dao.clearAllTransactions()
   }
 
@@ -98,20 +119,20 @@ class SanchayRepository(private val dao: SanchayDao) {
   fun calculateChannelBreakdown(transactions: List<TransactionItem>): List<ChannelBreakdown> {
     var upiTotal = 0.0
     var cashTotal = 0.0
-    var otherTotal = 0.0
+    var tacticalOtherTotal = 0.0
 
     transactions.forEach { tx ->
       val amt = tx.amount
       when (tx.channel) {
         Channel.UPI -> upiTotal += amt
         Channel.CASH -> cashTotal += amt
-        Channel.OTHER -> otherTotal += amt
+        Channel.OTHER -> tacticalOtherTotal += amt
       }
     }
 
     val safeUpi = max(0.0, upiTotal)
     val safeCash = max(0.0, cashTotal)
-    val safeOther = max(0.0, otherTotal)
+    val safeOther = max(0.0, tacticalOtherTotal)
     val grandTotal = safeUpi + safeCash + safeOther
 
     return listOf(
@@ -186,7 +207,7 @@ class SanchayRepository(private val dao: SanchayDao) {
     return currentStreak
   }
 
-  suspend fun restoreBackup(payload: BackupPayload) {
+  suspend fun restoreBackup(payload: BackupPayload) = withContext(Dispatchers.IO) {
     if (payload.goals.isNotEmpty()) {
       dao.insertGoals(payload.goals.map { GoalEntity.fromDomain(it) })
     }

@@ -54,6 +54,7 @@ import com.example.data.model.CurrencyFormatter
 import com.example.data.model.Goal
 import com.example.data.model.TransactionItem
 import com.example.data.model.TransactionType
+import com.example.service.ExpenseClassifier
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
 import com.example.ui.theme.ChannelUpi
@@ -518,6 +519,7 @@ fun AddEntryBottomSheet(
 
           val finalAmount = if (transactionType == TransactionType.CREDIT) parsedAmount else -parsedAmount
           val today = LocalDate.now()
+          val classifiedCategory = ExpenseClassifier.classify(noteText, "")
           val newItem = TransactionItem(
             goalId = linkedGoalId,
             amount = finalAmount,
@@ -528,7 +530,8 @@ fun AddEntryBottomSheet(
             isAutoCaptured = initialUpiAppName != null,
             upiAppName = initialUpiAppName,
             upiRefId = initialUpiRefId,
-            isConfirmed = true
+            isConfirmed = true,
+            category = classifiedCategory.name
           )
           onSaveEntry(newItem)
           onDismiss()

@@ -28,9 +28,9 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Upload
 import com.google.firebase.auth.FirebaseUser
@@ -357,7 +357,7 @@ fun SettingsModal(
                 modifier = Modifier.testTag("sign_out_button")
               ) {
                 Icon(
-                  imageVector = Icons.Default.ExitToApp,
+                  imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                   contentDescription = null,
                   tint = SwissCrimson,
                   modifier = Modifier.size(16.dp)
@@ -379,7 +379,7 @@ fun SettingsModal(
                 modifier = Modifier.testTag("sign_in_link_button")
               ) {
                 Icon(
-                  imageVector = Icons.Default.Login,
+                  imageVector = Icons.AutoMirrored.Filled.Login,
                   contentDescription = null,
                   tint = Color.White,
                   modifier = Modifier.size(16.dp)

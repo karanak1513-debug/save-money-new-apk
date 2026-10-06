@@ -21,6 +21,14 @@ enum class TransactionType {
   DEBIT   // spending / deduction (-)
 }
 
+enum class ExpenseCategory(val displayName: String, val shortTag: String) {
+  FOOD_ESSENTIALS("Food & Essentials", "FOOD"),
+  COMMUTE_FUEL("Commute & Fuel", "TRANSIT"),
+  BILLS_UTILITIES("Bills & Utilities", "BILLS"),
+  DISCRETIONARY("Discretionary / Leisure", "LEISURE"),
+  GENERAL("General & Savings", "GENERAL")
+}
+
 data class Goal(
   val id: Long = 0,
   val title: String,
@@ -50,8 +58,12 @@ data class TransactionItem(
   val upiAppName: String? = null,
   val merchantOrSender: String? = null,
   val upiRefId: String? = null,
-  val isConfirmed: Boolean = true
-)
+  val isConfirmed: Boolean = true,
+  val category: String = ExpenseCategory.GENERAL.name
+) {
+  val expenseCategory: ExpenseCategory
+    get() = runCatching { ExpenseCategory.valueOf(category) }.getOrDefault(ExpenseCategory.GENERAL)
+}
 
 data class ChannelBreakdown(
   val channel: Channel,
@@ -73,6 +85,40 @@ data class PacingInfo(
   val daysRemaining: Long,
   val isExpired: Boolean = false,
   val isCompleted: Boolean = false
+)
+
+data class GoalFeasibility(
+  val scorePercent: Int,
+  val isOnTrack: Boolean,
+  val statusBadgeText: String,
+  val trailing14dVelocity: Double,
+  val shortfallPerDay: Double,
+  val probabilityPercent: Int,
+  val isCompleted: Boolean = false,
+  val isExpired: Boolean = false
+)
+
+data class MicroLeakAlert(
+  val isDetected: Boolean,
+  val microPercent: Int,
+  val microTotal: Double,
+  val delayedDays: Int,
+  val transactionCount: Int,
+  val badgeText: String,
+  val weeklyOutflow: Double
+)
+
+data class WeeklyAuditSummary(
+  val totalInflow: Double,
+  val totalOutflow: Double,
+  val netSavings: Double,
+  val biggestCategory: ExpenseCategory?,
+  val biggestCategoryAmount: Double,
+  val recommendedPaceAdjustment: Double,
+  val recommendationText: String,
+  val dateRangeLabel: String,
+  val totalTransactionCount: Int,
+  val isGenerated: Boolean = true
 )
 
 object CurrencyFormatter {

@@ -58,7 +58,8 @@ data class TransactionEntity(
   val upiAppName: String? = null,
   val merchantOrSender: String? = null,
   val upiRefId: String? = null,
-  val isConfirmed: Boolean = true
+  val isConfirmed: Boolean = true,
+  val category: String = "GENERAL"
 ) {
   fun toDomain(): TransactionItem = TransactionItem(
     id = id,
@@ -72,7 +73,8 @@ data class TransactionEntity(
     upiAppName = upiAppName,
     merchantOrSender = merchantOrSender,
     upiRefId = upiRefId,
-    isConfirmed = isConfirmed
+    isConfirmed = isConfirmed,
+    category = category
   )
 
   companion object {
@@ -88,7 +90,8 @@ data class TransactionEntity(
       upiAppName = item.upiAppName,
       merchantOrSender = item.merchantOrSender,
       upiRefId = item.upiRefId,
-      isConfirmed = item.isConfirmed
+      isConfirmed = item.isConfirmed,
+      category = item.category
     )
   }
 }

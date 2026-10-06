@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.Goal
+import com.example.data.model.GoalFeasibility
 import com.example.data.model.PacingInfo
 import com.example.ui.theme.MonospaceDisplay
 import com.example.ui.theme.MonospaceMicro
@@ -49,12 +49,19 @@ import com.example.ui.theme.SwissDark
 import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
-import java.util.Locale
 
+/**
+ * Hero Goal Card:
+ * - Monospaced balance (with privacy blur support)
+ * - 3px razor crimson progress bar (#DC2626)
+ * - Strictly padded 3-column pacing grid (DAILY, WEEKLY, MONTHLY) preventing text collision
+ */
 @Composable
 fun PrimaryGoalCard(
   goal: Goal?,
   pacingInfo: PacingInfo,
+  feasibility: GoalFeasibility? = null,
+  isPrivacyMode: Boolean = false,
   onSwitchGoalClick: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
@@ -72,8 +79,8 @@ fun PrimaryGoalCard(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
+      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+      .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
       .padding(20.dp)
       .testTag("primary_goal_card")
   ) {
@@ -141,6 +148,47 @@ fun PrimaryGoalCard(
       maxLines = 1
     )
 
+    // Dynamic Predictive Goal Feasibility (Run-Rate AI) Status Badge
+    if (feasibility != null && goal != null) {
+      Spacer(modifier = Modifier.height(8.dp))
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .background(
+            if (feasibility.isOnTrack) SwissAlpineGreenLight else SwissCrimsonLight,
+            RoundedCornerShape(6.dp)
+          )
+          .border(
+            0.75.dp,
+            if (feasibility.isOnTrack) SwissAlpineGreen else SwissCrimson,
+            RoundedCornerShape(6.dp)
+          )
+          .padding(horizontal = 10.dp, vertical = 7.dp)
+          .testTag("feasibility_status_badge")
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = feasibility.statusBadgeText,
+            style = MonospaceMicro,
+            color = if (feasibility.isOnTrack) SwissAlpineGreen else SwissCrimson,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp
+          )
+          Text(
+            text = if (isPrivacyMode) "14D: ₹••••/D" else "14D: ${CurrencyFormatter.formatRupee(feasibility.trailing14dVelocity)}/D",
+            style = MonospaceMicro,
+            color = SwissDark,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium
+          )
+        }
+      }
+    }
+
     Spacer(modifier = Modifier.height(14.dp))
 
     // Editorial Financial Scale: Saved Amount vs Target
@@ -151,74 +199,69 @@ fun PrimaryGoalCard(
     ) {
       Column {
         Text(
-          text = "CURRENT ALLOCATED",
+          text = "SAVED AMOUNT",
           style = MonospaceMicro,
           color = SwissTextTertiary,
           letterSpacing = 1.sp
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-          text = CurrencyFormatter.formatRupee(savedAmount),
+          text = if (isPrivacyMode) "₹••••••••" else CurrencyFormatter.formatRupee(savedAmount),
           style = MonospaceDisplay,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 24.sp
+          fontSize = 26.sp,
+          letterSpacing = (-0.5).sp
         )
       }
 
       Column(horizontalAlignment = Alignment.End) {
         Text(
-          text = "TARGET RATIO",
+          text = "TARGET GOAL",
           style = MonospaceMicro,
           color = SwissTextTertiary,
           letterSpacing = 1.sp
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-          text = String.format(Locale.US, "%.1f%%", progress * 100),
+          text = if (isPrivacyMode) "₹••••••••" else CurrencyFormatter.formatRupee(targetAmount),
           style = MonospaceSmall,
-          fontWeight = FontWeight.Bold,
-          color = if (pacingInfo.isCompleted) SwissAlpineGreen else SwissCrimson
-        )
-        Text(
-          text = "OF ${CurrencyFormatter.formatRupee(targetAmount)}",
-          style = MonospaceMicro,
           color = SwissTextSecondary,
-          fontSize = 10.sp
+          fontWeight = FontWeight.Bold,
+          fontSize = 14.sp
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(14.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // Precision Razor Progress Meter with Hairline Track
+    // 3px razor crimson progress bar (#DC2626)
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(5.dp)
-        .background(Color(0xFFEEEEEE), RoundedCornerShape(2.5.dp))
+        .height(3.dp)
+        .background(Color(0xFFF3F4F6), RoundedCornerShape(1.5.dp))
     ) {
       Box(
         modifier = Modifier
           .fillMaxWidth(animatedProgress)
-          .height(5.dp)
+          .height(3.dp)
           .background(
             if (pacingInfo.isCompleted) SwissAlpineGreen else SwissCrimson,
-            RoundedCornerShape(2.5.dp)
+            RoundedCornerShape(1.5.dp)
           )
           .testTag("goal_progress_indicator")
       )
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(18.dp))
 
-    // Pacing Grid: 3 Clean Architectural Columns with Hairline Dividers
-    // Absolutely zero overlapping text! Each metric has ample dedicated space.
+    // Pacing Grid: Strictly padded 3-column pacing grid preventing text collision
     Row(
       modifier = Modifier
         .fillMaxWidth()
-        .background(Color(0xFFF9F9F8), RoundedCornerShape(8.dp))
-        .border(0.75.dp, SwissHairline, RoundedCornerShape(8.dp))
-        .padding(vertical = 12.dp, horizontal = 10.dp),
+        .background(Color(0xFFF9FAFB), RoundedCornerShape(6.dp))
+        .border(1.dp, SwissHairline, RoundedCornerShape(6.dp))
+        .padding(vertical = 12.dp, horizontal = 12.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
       // Metric 1: Daily Pace
@@ -230,24 +273,30 @@ fun PrimaryGoalCard(
           text = "DAILY",
           style = MonospaceMicro,
           color = SwissTextTertiary,
-          letterSpacing = 0.8.sp
+          letterSpacing = 0.8.sp,
+          fontSize = 9.sp
         )
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = if (pacingInfo.isExpired) "—" else CurrencyFormatter.formatRupee(pacingInfo.dailyPace),
+          text = when {
+            isPrivacyMode -> "₹•••"
+            pacingInfo.isExpired -> "—"
+            else -> CurrencyFormatter.formatRupee(pacingInfo.dailyPace)
+          },
           style = MonospaceSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 12.sp
+          fontSize = 12.sp,
+          maxLines = 1
         )
       }
 
       // Hairline Divider
       Box(
         modifier = Modifier
-          .width(0.75.dp)
-          .height(26.dp)
-          .background(SwissHairline)
+          .width(1.dp)
+          .height(28.dp)
+          .background(SwissBorder)
       )
 
       // Metric 2: Weekly Pace
@@ -259,24 +308,30 @@ fun PrimaryGoalCard(
           text = "WEEKLY",
           style = MonospaceMicro,
           color = SwissTextTertiary,
-          letterSpacing = 0.8.sp
+          letterSpacing = 0.8.sp,
+          fontSize = 9.sp
         )
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = if (pacingInfo.isExpired) "—" else CurrencyFormatter.formatRupee(pacingInfo.weeklyPace),
+          text = when {
+            isPrivacyMode -> "₹••••"
+            pacingInfo.isExpired -> "—"
+            else -> CurrencyFormatter.formatRupee(pacingInfo.weeklyPace)
+          },
           style = MonospaceSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 12.sp
+          fontSize = 12.sp,
+          maxLines = 1
         )
       }
 
       // Hairline Divider
       Box(
         modifier = Modifier
-          .width(0.75.dp)
-          .height(26.dp)
-          .background(SwissHairline)
+          .width(1.dp)
+          .height(28.dp)
+          .background(SwissBorder)
       )
 
       // Metric 3: Monthly Pace
@@ -288,27 +343,33 @@ fun PrimaryGoalCard(
           text = "MONTHLY",
           style = MonospaceMicro,
           color = SwissTextTertiary,
-          letterSpacing = 0.8.sp
+          letterSpacing = 0.8.sp,
+          fontSize = 9.sp
         )
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = if (pacingInfo.isExpired) "—" else CurrencyFormatter.formatRupee(pacingInfo.monthlyPace),
+          text = when {
+            isPrivacyMode -> "₹•••••"
+            pacingInfo.isExpired -> "—"
+            else -> CurrencyFormatter.formatRupee(pacingInfo.monthlyPace)
+          },
           style = MonospaceSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
-          fontSize = 12.sp
+          fontSize = 12.sp,
+          maxLines = 1
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
     // Pacing Narrative Insight Row
     Row(
       modifier = Modifier
         .fillMaxWidth()
         .background(
-          if (pacingInfo.isExpired) SwissCrimsonLight else Color(0xFFF6F6F4),
+          if (pacingInfo.isExpired) SwissCrimsonLight else Color(0xFFF9FAFB),
           RoundedCornerShape(6.dp)
         )
         .padding(horizontal = 10.dp, vertical = 7.dp)
@@ -326,6 +387,7 @@ fun PrimaryGoalCard(
           goal == null -> "Configure a target to compute real-time run rates."
           pacingInfo.isCompleted -> "Target achieved. Capital accumulation complete."
           pacingInfo.isExpired -> "Target deadline has elapsed. Update deadline in Goals."
+          isPrivacyMode -> "Daily run-rate active to satisfy target."
           pacingInfo.dailyPace > 0 -> "Commit ${CurrencyFormatter.formatRupee(pacingInfo.dailyPace)} / day to satisfy target."
           else -> "Cadence satisfied. No immediate contribution required."
         },

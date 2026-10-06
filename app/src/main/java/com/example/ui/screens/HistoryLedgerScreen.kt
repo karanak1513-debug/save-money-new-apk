@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Channel
 import com.example.data.model.CurrencyFormatter
+import com.example.data.model.ExpenseCategory
 import com.example.data.model.TransactionItem
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
@@ -89,6 +90,10 @@ enum class LedgerFilter(val displayName: String) {
   UPI("UPI"),
   CASH("CASH"),
   OTHER("OTHER"),
+  FOOD("FOOD"),
+  COMMUTE("TRANSIT"),
+  BILLS("BILLS"),
+  LEISURE("LEISURE"),
   CREDITS("CREDITS (+)"),
   DEBITS("DEBITS (-)")
 }
@@ -148,6 +153,10 @@ fun HistoryLedgerScreen(
         LedgerFilter.UPI -> tx.channel == Channel.UPI
         LedgerFilter.CASH -> tx.channel == Channel.CASH
         LedgerFilter.OTHER -> tx.channel == Channel.OTHER
+        LedgerFilter.FOOD -> tx.expenseCategory == ExpenseCategory.FOOD_ESSENTIALS
+        LedgerFilter.COMMUTE -> tx.expenseCategory == ExpenseCategory.COMMUTE_FUEL
+        LedgerFilter.BILLS -> tx.expenseCategory == ExpenseCategory.BILLS_UTILITIES
+        LedgerFilter.LEISURE -> tx.expenseCategory == ExpenseCategory.DISCRETIONARY
         LedgerFilter.CREDITS -> tx.amount > 0
         LedgerFilter.DEBITS -> tx.amount < 0
       }
@@ -532,6 +541,22 @@ fun HistoryLedgerScreen(
                       style = MonospaceMicro,
                       color = channelColor,
                       fontSize = 8.sp
+                    )
+                  }
+
+                  // Smart Category Tag Pill
+                  Box(
+                    modifier = Modifier
+                      .background(Color(0xFFEEEEEC), RoundedCornerShape(3.dp))
+                      .border(0.75.dp, SwissBorder, RoundedCornerShape(3.dp))
+                      .padding(horizontal = 4.dp, vertical = 2.dp)
+                  ) {
+                    Text(
+                      text = tx.expenseCategory.shortTag,
+                      style = MonospaceMicro,
+                      color = SwissTextSecondary,
+                      fontSize = 8.sp,
+                      fontWeight = FontWeight.Bold
                     )
                   }
 

@@ -8,10 +8,15 @@ import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.example.R
+import com.example.data.auth.AuthManager
 import com.example.data.local.SanchayDatabase
 import com.example.data.local.TransactionEntity
 import com.example.data.model.Channel
 import com.example.data.model.TransactionType
+import com.google.firebase.FirebaseApp
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +28,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.Collections
 import java.util.LinkedHashSet
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -38,14 +44,14 @@ data class UpiTransaction(
 )
 
 /**
- * Production-ready Android NotificationListenerService for real-time UPI transaction capture.
+ * Production-ready Android NotificationListenerService for automatic UPI transaction interception.
  */
 class UpiNotificationService : NotificationListenerService() {
 
   companion object {
     private const val TAG = "UpiNotificationService"
 
-    // Supported target application packages
+    // Target Packages
     const val PACKAGE_PHONEPE = "com.phonepe.app"
     const val PACKAGE_GPAY = "com.google.android.apps.nbu.paisa.user"
     const val PACKAGE_PAYTM = "net.one97.paytm"
@@ -66,55 +72,57 @@ class UpiNotificationService : NotificationListenerService() {
     private val _transactionFlow = MutableSharedFlow<UpiTransaction>(extraBufferCapacity = 64)
     val transactionFlow: SharedFlow<UpiTransaction> = _transactionFlow.asSharedFlow()
 
-    // Deduplication tracking: Set of computed transaction hashes (amount + merchant + minute)
+    // Deduplication tracking: Set of computed transaction hashes (amount + merchant + (timestamp / 60000))
     private val deduplicationCache = Collections.synchronizedSet(LinkedHashSet<String>())
     private const val MAX_DEDUPLICATION_CACHE_SIZE = 500
 
     /**
-     * Regex for extracting amount formats:
-     * Handles ₹500, Rs. 500, Rs 500.00, INR 1,500.50, 500 Rs, 1,500.50 INR
+     * Strict Amount Regex required by Sanchay Parser Engine:
+     * (?:(?:rs|inr|₹)\.?\s*([\d,]+(?:\.\d{1,2})?)|([\d,]+(?:\.\d{1,2})?)\s*(?:inr|rs|₹))
      */
     private val amountRegex = Regex(
       """(?i)(?:(?:rs|inr|₹)\.?\s*([\d,]+(?:\.\d{1,2})?)|([\d,]+(?:\.\d{1,2})?)\s*(?:inr|rs|₹))"""
     )
 
-    // Strict transaction nature keywords
+    // Debit classification: paid, debited, sent to, spent
     private val debitKeywords = Regex(
-      """(?i)\b(paid|sent\s+to|debited|transferred\s+to|spent|purchase)\b"""
-    )
-    private val creditKeywords = Regex(
-      """(?i)\b(received|credited|added|deposited|cashback)\b"""
+      """(?i)\b(paid|debited|sent\s+to|spent|purchase|transferred\s+to)\b"""
     )
 
-    // Merchant / recipient extraction regex
-    private val merchantDebitRegex = Regex(
-      """(?i)(?:paid\s+to|sent\s+to|transferred\s+to|payment\s+(?:of\s+[^\s]+\s+)?to|purchase\s+at|to)\s+([A-Za-z0-9\s&'.@_-]{2,32}?)(?:\s+(?:using|on|via|ref|upi|utr|from|with|\.|successfully|,|/|$))"""
-    )
-    private val merchantCreditRegex = Regex(
-      """(?i)(?:received\s+from|credited\s+by|from|by\s+UPI/|vpa)\s+([A-Za-z0-9\s&'.@_-]{2,32}?)(?:\s+(?:on|via|ref|upi|utr|\.|successfully|,|/|$))"""
+    // Credit classification: received, credited, added, cashback
+    private val creditKeywords = Regex(
+      """(?i)\b(received|credited|added|cashback|deposited)\b"""
     )
 
     /**
-     * Checks if the NotificationListenerService permission is granted by the user in system settings.
+     * Checks if notification listener access is enabled in Android system settings.
      */
     fun isNotificationServiceEnabled(context: Context): Boolean {
-      val cn = ComponentName(context, UpiNotificationService::class.java)
-      val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-      return flat != null && flat.contains(cn.flattenToString())
+      return try {
+        val cn = ComponentName(context, UpiNotificationService::class.java)
+        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        flat != null && flat.contains(cn.flattenToString())
+      } catch (e: Throwable) {
+        false
+      }
     }
 
     /**
-     * Redirects the user directly to the Android Notification Listener Settings page.
+     * Redirects the user directly to Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS.
      */
     fun openNotificationListenerSettings(context: Context) {
-      val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      try {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+      } catch (e: Throwable) {
+        Log.e(TAG, "Failed to launch notification listener settings", e)
       }
-      context.startActivity(intent)
     }
 
     /**
-     * Robust transaction parser parsing notification content against supported UPI app and SMS payloads.
+     * Robust parser engine inspecting notification text against supported UPI app and bank SMS payloads.
      */
     fun parseTransaction(packageName: String, title: String?, text: String?): UpiTransaction? {
       val combinedText = buildString {
@@ -124,45 +132,41 @@ class UpiNotificationService : NotificationListenerService() {
 
       if (combinedText.isBlank()) return null
 
-      // 1. Amount Extraction
+      // Check for Debit vs Credit
+      val isDebit = debitKeywords.containsMatchIn(combinedText)
+      val isCredit = creditKeywords.containsMatchIn(combinedText)
+
+      if (!isDebit && !isCredit) {
+        return null
+      }
+
+      val type = if (isDebit) TransactionType.DEBIT else TransactionType.CREDIT
+
+      // Extract amount using Strict Amount Regex
       val amountMatch = amountRegex.find(combinedText) ?: return null
-      val rawAmountStr = amountMatch.groupValues[1].ifEmpty { amountMatch.groupValues[2] }.replace(",", "").trim()
+      val rawAmountStr = (amountMatch.groups[1]?.value ?: amountMatch.groups[2]?.value)?.replace(",", "") ?: return null
       val amount = rawAmountStr.toDoubleOrNull() ?: return null
       if (amount <= 0.0) return null
 
-      // 2. Transaction Type Classification
-      val hasDebit = debitKeywords.containsMatchIn(combinedText)
-      val hasCredit = creditKeywords.containsMatchIn(combinedText)
-      val type = when {
-        hasDebit && !hasCredit -> TransactionType.DEBIT
-        hasCredit && !hasDebit -> TransactionType.CREDIT
-        hasCredit -> TransactionType.CREDIT
-        else -> TransactionType.DEBIT
-      }
-
-      // 3. Merchant / Recipient Extraction
-      val merchant = extractMerchant(combinedText, type)
-
-      // 4. Source App Display Name
       val sourceApp = when (packageName) {
         PACKAGE_PHONEPE -> "PhonePe"
         PACKAGE_GPAY -> "Google Pay"
         PACKAGE_PAYTM -> "Paytm"
-        PACKAGE_BHIM -> "BHIM UPI"
+        PACKAGE_BHIM -> "BHIM"
         PACKAGE_GOOGLE_MESSAGING, PACKAGE_SAMSUNG_MESSAGING -> "Bank SMS"
         else -> "UPI"
       }
 
-      val timestamp = System.currentTimeMillis()
-      val id = UUID.randomUUID().toString()
+      val merchant = extractMerchant(combinedText, type)
+      val txId = UUID.randomUUID().toString()
 
       return UpiTransaction(
-        id = id,
+        id = txId,
         amount = amount,
         type = type,
         merchant = merchant,
         sourceApp = sourceApp,
-        timestamp = timestamp
+        timestamp = System.currentTimeMillis()
       )
     }
 
@@ -189,18 +193,16 @@ class UpiNotificationService : NotificationListenerService() {
     }
 
     /**
-     * Generates a unique deduplication hash based on amount, merchant, and minute timestamp.
+     * Unique signature check: hash(amount + merchant + (timestamp / 60000))
+     * Ensures dual SMS and UPI alerts do not create duplicate ledger entries.
      */
     fun generateDeduplicationKey(amount: Double, merchant: String, timestamp: Long): String {
       val minuteBucket = timestamp / 60000L
-      val rawKey = "${"%.2f".format(amount)}:${merchant.trim().lowercase()}:$minuteBucket"
+      val rawKey = "${"%.2f".format(Locale.US, amount)}:${merchant.trim().lowercase(Locale.ROOT)}:$minuteBucket"
       val digest = MessageDigest.getInstance("SHA-256").digest(rawKey.toByteArray())
       return digest.joinToString("") { "%02x".format(it) }
     }
 
-    /**
-     * Checks if transaction is duplicate within the minute window.
-     */
     fun isDuplicate(transaction: UpiTransaction): Boolean {
       val key = generateDeduplicationKey(transaction.amount, transaction.merchant, transaction.timestamp)
       synchronized(deduplicationCache) {
@@ -208,9 +210,6 @@ class UpiNotificationService : NotificationListenerService() {
       }
     }
 
-    /**
-     * Records transaction in deduplication cache.
-     */
     fun markProcessed(transaction: UpiTransaction) {
       val key = generateDeduplicationKey(transaction.amount, transaction.merchant, transaction.timestamp)
       synchronized(deduplicationCache) {
@@ -225,9 +224,6 @@ class UpiNotificationService : NotificationListenerService() {
       }
     }
 
-    /**
-     * Resets deduplication cache for testing or cleanup.
-     */
     fun clearDeduplicationCache() {
       synchronized(deduplicationCache) {
         deduplicationCache.clear()
@@ -237,74 +233,131 @@ class UpiNotificationService : NotificationListenerService() {
 
   private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+  override fun onListenerConnected() {
+    try {
+      super.onListenerConnected()
+      Log.i(TAG, "UpiNotificationService connected and active")
+    } catch (e: Throwable) {
+      Log.e(TAG, "Error in onListenerConnected", e)
+    }
+  }
+
+  override fun onListenerDisconnected() {
+    try {
+      super.onListenerDisconnected()
+      Log.i(TAG, "UpiNotificationService disconnected safely")
+    } catch (e: Throwable) {
+      Log.e(TAG, "Error in onListenerDisconnected", e)
+    }
+  }
+
   override fun onNotificationPosted(sbn: StatusBarNotification?) {
-    super.onNotificationPosted(sbn)
-    if (sbn == null) return
+    try {
+      super.onNotificationPosted(sbn)
+      if (sbn == null) return
 
-    val packageName = sbn.packageName ?: return
+      val packageName = sbn.packageName ?: return
+      if (packageName !in TARGET_PACKAGES) return
 
-    // Filter by target UPI and SMS applications
-    if (packageName !in TARGET_PACKAGES) return
+      val notification = sbn.notification ?: return
+      val extras = notification.extras ?: return
 
-    val notification = sbn.notification ?: return
-    val extras = notification.extras ?: return
+      // Completely inspect extras safely: EXTRA_TITLE, EXTRA_TEXT, EXTRA_BIG_TEXT, EXTRA_SUB_TEXT
+      val title = runCatching { extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() }.getOrNull()
+      val text = runCatching { extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() }.getOrNull()
+      val bigText = runCatching { extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() }.getOrNull()
+      val subText = runCatching { extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() }.getOrNull()
 
-    val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-    val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-    val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-    val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+      val combinedContent = buildString {
+        if (!text.isNullOrBlank()) append(text)
+        if (!bigText.isNullOrBlank() && bigText != text) {
+          if (isNotEmpty()) append(" ")
+          append(bigText)
+        }
+        if (!subText.isNullOrBlank()) {
+          if (isNotEmpty()) append(" ")
+          append(subText)
+        }
+      }.trim()
 
-    val combinedContent = buildString {
-      if (!text.isNullOrBlank()) append(text)
-      if (!bigText.isNullOrBlank() && bigText != text) {
-        if (isNotEmpty()) append(" ")
-        append(bigText)
+      val transaction = parseTransaction(packageName, title, combinedContent) ?: return
+
+      // Deduplication check: hash(amount + merchant + (timestamp / 60000))
+      if (isDuplicate(transaction)) {
+        Log.i(TAG, "Duplicate filtered for ${transaction.amount} to ${transaction.merchant}")
+        return
       }
-      if (!subText.isNullOrBlank()) {
-        if (isNotEmpty()) append(" ")
-        append(subText)
+
+      markProcessed(transaction)
+      Log.i(TAG, "Captured UPI Transaction: ${transaction.amount} [${transaction.type}] via ${transaction.sourceApp}")
+
+      _transactionFlow.tryEmit(transaction)
+
+      // Persist to Room DB and sync directly with Firestore under users/{userId}/transactions
+      serviceScope.launch {
+        try {
+          val database = SanchayDatabase.getDatabase(applicationContext)
+          val todayEpoch = LocalDate.now().toEpochDay()
+          val signedAmount = if (transaction.type == TransactionType.DEBIT) -transaction.amount else transaction.amount
+          val detectedCategory = ExpenseClassifier.classify(transaction.merchant, transaction.sourceApp)
+
+          val entity = TransactionEntity(
+            goalId = null,
+            amount = signedAmount,
+            channel = Channel.UPI.name,
+            note = "${transaction.merchant} (${transaction.sourceApp})",
+            timestamp = transaction.timestamp,
+            dateEpochDay = todayEpoch,
+            isAutoCaptured = true,
+            upiAppName = transaction.sourceApp,
+            merchantOrSender = transaction.merchant,
+            upiRefId = transaction.id,
+            isConfirmed = true,
+            category = detectedCategory.name
+          )
+          val generatedId = database.sanchayDao().addTransactionWithGoalUpdate(entity)
+
+          // Direct Firestore sync under users/{userId}/transactions with isAutoCaptured = true
+          val user = AuthManager.currentUser
+          if (user != null) {
+            try {
+              val fbApp = runCatching { FirebaseApp.getInstance() }.getOrNull()
+              if (fbApp != null) {
+                val dbId = runCatching { applicationContext.getString(R.string.firestore_database_id) }.getOrNull()
+                val firestore = if (!dbId.isNullOrBlank()) FirebaseFirestore.getInstance(fbApp, dbId) else FirebaseFirestore.getInstance(fbApp)
+                val docId = if (!entity.upiRefId.isNullOrBlank()) entity.upiRefId!! else generatedId.toString()
+
+                val data = mapOf(
+                  "userId" to user.uid,
+                  "amount" to signedAmount,
+                  "channel" to Channel.UPI.name,
+                  "note" to entity.note,
+                  "category" to detectedCategory.name,
+                  "dateEpochDay" to todayEpoch,
+                  "timestamp" to transaction.timestamp,
+                  "isAutoCaptured" to true,
+                  "upiAppName" to transaction.sourceApp,
+                  "merchantOrSender" to transaction.merchant,
+                  "upiRefId" to transaction.id,
+                  "createdAt" to Timestamp.now()
+                )
+
+                firestore.collection("users")
+                  .document(user.uid)
+                  .collection("transactions")
+                  .document(docId)
+                  .set(data)
+              }
+            } catch (fsEx: Throwable) {
+              Log.w(TAG, "Background Firestore sync skipped/failed: ${fsEx.message}")
+            }
+          }
+        } catch (e: Throwable) {
+          Log.e(TAG, "Error persisting transaction to database", e)
+        }
       }
-    }
-
-    Log.d(TAG, "Notification from $packageName received: '$title' - '$combinedContent'")
-
-    val transaction = parseTransaction(packageName, title, combinedContent) ?: return
-
-    // Deduplication check
-    if (isDuplicate(transaction)) {
-      Log.i(TAG, "Duplicate detected and filtered for ${transaction.amount} to ${transaction.merchant}")
-      return
-    }
-
-    markProcessed(transaction)
-    Log.i(TAG, "Captured UPI Transaction: ${transaction.amount} [${transaction.type}] via ${transaction.sourceApp}")
-
-    // 1. Emit via Kotlin SharedFlow
-    _transactionFlow.tryEmit(transaction)
-
-    // 2. Persist to Room Database so app ledger is updated automatically
-    serviceScope.launch {
-      try {
-        val database = SanchayDatabase.getDatabase(applicationContext, this)
-        val todayEpoch = LocalDate.now().toEpochDay()
-        val signedAmount = if (transaction.type == TransactionType.DEBIT) -transaction.amount else transaction.amount
-        val entity = TransactionEntity(
-          goalId = null,
-          amount = signedAmount,
-          channel = Channel.UPI.name,
-          note = "${transaction.merchant} (${transaction.sourceApp})",
-          timestamp = transaction.timestamp,
-          dateEpochDay = todayEpoch,
-          isAutoCaptured = true,
-          upiAppName = transaction.sourceApp,
-          merchantOrSender = transaction.merchant,
-          upiRefId = transaction.id,
-          isConfirmed = true
-        )
-        database.sanchayDao().addTransactionWithGoalUpdate(entity)
-      } catch (e: Exception) {
-        Log.e(TAG, "Error persisting transaction to database", e)
-      }
+    } catch (e: Throwable) {
+      Log.e(TAG, "Unexpected error in onNotificationPosted", e)
     }
   }
 }

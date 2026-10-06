@@ -18,6 +18,12 @@ interface SanchayDao {
   @Query("SELECT * FROM goals WHERE isPrimary = 1 LIMIT 1")
   fun getPrimaryGoal(): Flow<GoalEntity?>
 
+  @Query("SELECT COUNT(*) FROM goals")
+  suspend fun getGoalCount(): Int
+
+  @Query("SELECT COUNT(*) FROM transactions")
+  suspend fun getTransactionCount(): Int
+
   @Query("SELECT * FROM goals WHERE id = :id")
   suspend fun getGoalById(id: Long): GoalEntity?
 

@@ -57,6 +57,7 @@ object BackupManager {
         put("upiAppName", tx.upiAppName ?: JSONObject.NULL)
         put("merchantOrSender", tx.merchantOrSender ?: JSONObject.NULL)
         put("upiRefId", tx.upiRefId ?: JSONObject.NULL)
+        put("category", tx.category)
       }
       txArray.put(tObj)
     }
@@ -116,7 +117,8 @@ object BackupManager {
             upiAppName = if (tObj.isNull("upiAppName")) null else tObj.optString("upiAppName"),
             merchantOrSender = if (tObj.isNull("merchantOrSender")) null else tObj.optString("merchantOrSender"),
             upiRefId = if (tObj.isNull("upiRefId")) null else tObj.optString("upiRefId"),
-            isConfirmed = true
+            isConfirmed = true,
+            category = tObj.optString("category", "GENERAL")
           )
           txList.add(tx)
         }
