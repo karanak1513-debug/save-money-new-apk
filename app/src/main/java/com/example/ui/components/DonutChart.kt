@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,8 +41,8 @@ import com.example.data.model.CurrencyFormatter
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
 import com.example.ui.theme.ChannelUpi
-import com.example.ui.theme.MonospaceBody
 import com.example.ui.theme.MonospaceHeadline
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissDark
@@ -63,29 +61,28 @@ fun DonutBreakdownChart(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(12.dp))
-      .padding(16.dp)
+      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
+      .padding(18.dp)
       .testTag("donut_chart_container")
   ) {
-    // Header
+    // Editorial Header
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
       Text(
-        text = "Channel Distribution",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface
+        text = "02 // LIQUIDITY DISTRIBUTION",
+        style = MonospaceMicro,
+        color = SwissTextTertiary,
+        letterSpacing = 1.2.sp
       )
       Text(
-        text = "FLAT SPLIT",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.2.sp,
-        color = SwissTextTertiary
+        text = "CHANNELS",
+        style = MonospaceMicro,
+        color = SwissDark,
+        fontWeight = FontWeight.Bold
       )
     }
 
@@ -95,12 +92,12 @@ fun DonutBreakdownChart(
     Row(
       modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceEvenly
+      horizontalArrangement = Arrangement.SpaceBetween
     ) {
       // Donut Canvas
       Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(150.dp)
+        modifier = Modifier.size(136.dp)
       ) {
         val animationProgress by animateFloatAsState(
           targetValue = 1f,
@@ -110,17 +107,17 @@ fun DonutBreakdownChart(
 
         Canvas(
           modifier = Modifier
-            .size(140.dp)
+            .size(130.dp)
             .testTag("donut_canvas")
         ) {
-          val strokeWidth = 18.dp.toPx()
+          val strokeWidth = 14.dp.toPx()
           val chartDiameter = size.minDimension - strokeWidth
           val topLeft = Offset(strokeWidth / 2f, strokeWidth / 2f)
           val chartSize = Size(chartDiameter, chartDiameter)
 
           // Background light ring
           drawArc(
-            color = Color(0xFFF3F4F6),
+            color = Color(0xFFEEEEEE),
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -130,7 +127,7 @@ fun DonutBreakdownChart(
           )
 
           var currentAngle = -90f
-          val gapDegrees = 3f // Razor sharp Swiss cut gap
+          val gapDegrees = 3f
 
           breakdown.forEach { item ->
             val color = when (item.channel) {
@@ -144,7 +141,7 @@ fun DonutBreakdownChart(
 
             if (sweep > 0f) {
               val isSelected = selectedChannel == null || selectedChannel == item.channel
-              val arcAlpha = if (isSelected) 1f else 0.35f
+              val arcAlpha = if (isSelected) 1f else 0.3f
 
               drawArc(
                 color = color.copy(alpha = arcAlpha),
@@ -160,7 +157,7 @@ fun DonutBreakdownChart(
           }
         }
 
-        // Center Monospace Total / Active metric
+        // Center Monospace Metric
         Column(
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -169,12 +166,11 @@ fun DonutBreakdownChart(
           } else {
             total
           }
-          val activeLabel = selectedChannel?.displayName ?: "Total"
+          val activeLabel = selectedChannel?.displayName ?: "PORTFOLIO"
 
           Text(
             text = activeLabel.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            style = MonospaceMicro,
             color = SwissTextTertiary,
             fontSize = 9.sp
           )
@@ -182,7 +178,7 @@ fun DonutBreakdownChart(
             text = CurrencyFormatter.formatCompactRupee(activeAmount),
             style = MonospaceHeadline,
             color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 18.sp
+            fontSize = 16.sp
           )
         }
       }
@@ -190,7 +186,7 @@ fun DonutBreakdownChart(
       // Legend List
       Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.padding(start = 12.dp)
+        modifier = Modifier.padding(start = 14.dp)
       ) {
         breakdown.forEach { item ->
           val color = when (item.channel) {
@@ -210,10 +206,9 @@ fun DonutBreakdownChart(
               .padding(vertical = 2.dp)
               .testTag("legend_row_${item.channel.name.lowercase()}")
           ) {
-            // Square marker for Swiss minimalist feel
             Box(
               modifier = Modifier
-                .size(10.dp)
+                .size(8.dp)
                 .background(color)
             )
 
@@ -232,17 +227,17 @@ fun DonutBreakdownChart(
                 )
                 Text(
                   text = "${(item.percentage * 100).toInt()}%",
-                  style = MonospaceSmall,
+                  style = MonospaceMicro,
                   color = SwissTextSecondary,
-                  fontSize = 11.sp
+                  fontSize = 10.sp
                 )
               }
               Text(
                 text = CurrencyFormatter.formatRupee(item.amount),
-                style = MonospaceBody,
+                style = MonospaceSmall,
                 fontWeight = FontWeight.Bold,
                 color = if (item.channel == Channel.CASH) ChannelCash else MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp
+                fontSize = 12.sp
               )
             }
           }

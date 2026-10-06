@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -35,11 +34,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.DailyBarData
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
-import com.example.ui.theme.SwissBorderLight
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissDark
+import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
 import kotlin.math.max
@@ -56,9 +56,9 @@ fun WeeklyBarChart(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-      .border(1.dp, SwissBorder, RoundedCornerShape(12.dp))
-      .padding(16.dp)
+      .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+      .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
+      .padding(18.dp)
       .testTag("weekly_bar_chart_container")
   ) {
     // Header
@@ -69,15 +69,17 @@ fun WeeklyBarChart(
     ) {
       Column {
         Text(
+          text = "03 // CAPITAL VELOCITY",
+          style = MonospaceMicro,
+          color = SwissTextTertiary,
+          letterSpacing = 1.2.sp
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
           text = "Weekly Activity",
           style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
+          fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-          text = "Daily manual additions",
-          style = MaterialTheme.typography.bodySmall,
-          color = SwissTextSecondary
         )
       }
 
@@ -90,23 +92,21 @@ fun WeeklyBarChart(
           fontSize = 14.sp
         )
         Text(
-          text = "THIS WEEK",
-          style = MaterialTheme.typography.labelSmall,
-          fontWeight = FontWeight.Bold,
-          letterSpacing = 1.sp,
+          text = "7-DAY ROLLING",
+          style = MonospaceMicro,
           color = SwissTextTertiary,
           fontSize = 9.sp
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(14.dp))
 
-    // Interactive tooltip/detail row
+    // Interactive tooltip / Day inspector
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(20.dp),
+        .height(18.dp),
       contentAlignment = Alignment.Center
     ) {
       if (selectedIndex != null && selectedIndex!! in dailyData.indices) {
@@ -116,16 +116,11 @@ fun WeeklyBarChart(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = item.dateStr,
-            style = MaterialTheme.typography.labelSmall,
-            color = SwissTextSecondary,
-            fontWeight = FontWeight.Medium
+            text = item.dateStr.uppercase(),
+            style = MonospaceMicro,
+            color = SwissTextSecondary
           )
-          Text(
-            text = "•",
-            style = MaterialTheme.typography.labelSmall,
-            color = SwissTextTertiary
-          )
+          Text(text = "—", style = MonospaceMicro, color = SwissTextTertiary)
           Text(
             text = CurrencyFormatter.formatRupee(item.amount),
             style = MonospaceSmall,
@@ -135,21 +130,22 @@ fun WeeklyBarChart(
         }
       } else {
         Text(
-          text = "Tap a bar to inspect day",
-          style = MaterialTheme.typography.labelSmall,
-          color = SwissTextTertiary
+          text = "INSPECT ANY DAY COLUMN",
+          style = MonospaceMicro,
+          color = SwissTextTertiary,
+          fontSize = 9.sp
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(10.dp))
 
-    // Razor-Sharp Bars Row
+    // Precision Vertical Column Bars
     Row(
       modifier = Modifier
         .fillMaxWidth()
-        .height(120.dp)
-        .padding(horizontal = 8.dp),
+        .height(110.dp)
+        .padding(horizontal = 4.dp),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.Bottom
     ) {
@@ -157,7 +153,7 @@ fun WeeklyBarChart(
         val fraction = (item.amount / maxAmount).toFloat().coerceIn(0.04f, 1f)
         val animFraction by animateFloatAsState(
           targetValue = fraction,
-          animationSpec = tween(durationMillis = 600, delayMillis = index * 40),
+          animationSpec = tween(durationMillis = 500, delayMillis = index * 30),
           label = "bar_anim_$index"
         )
         val isSelected = selectedIndex == index
@@ -173,69 +169,69 @@ fun WeeklyBarChart(
             }
             .testTag("bar_day_$index")
         ) {
-          // Bar container with track
           Box(
             modifier = Modifier
               .weight(1f)
               .fillMaxWidth(),
             contentAlignment = Alignment.BottomCenter
           ) {
-            // Full height light track
+            // Full height hairline track
             Box(
               modifier = Modifier
-                .width(8.dp)
+                .width(6.dp)
                 .fillMaxHeight()
-                .background(Color(0xFFF3F4F6), RoundedCornerShape(2.dp))
+                .background(Color(0xFFF3F3F1), RoundedCornerShape(1.dp))
             )
 
-            // Active Razor-Sharp Bar
+            // Active Swiss Pillar
             Box(
               modifier = Modifier
-                .width(8.dp)
+                .width(6.dp)
                 .fillMaxHeight(animFraction)
                 .background(
                   color = when {
                     item.isToday -> SwissCrimson
                     isSelected -> SwissCrimson
                     item.amount > 0 -> SwissDark
-                    else -> Color(0xFFE5E7EB)
+                    else -> Color(0xFFE2E4E8)
                   },
-                  shape = RoundedCornerShape(2.dp)
+                  shape = RoundedCornerShape(1.dp)
                 )
             )
           }
 
           Spacer(modifier = Modifier.height(8.dp))
 
-          // Day Label
+          // Day Monospace Label
           Text(
-            text = item.dayLabel,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (item.isToday) FontWeight.Bold else FontWeight.Medium,
-            color = if (item.isToday) SwissCrimson else SwissTextSecondary
+            text = item.dayLabel.uppercase(),
+            style = MonospaceMicro,
+            fontWeight = if (item.isToday) FontWeight.Bold else FontWeight.Normal,
+            color = if (item.isToday) SwissCrimson else SwissTextSecondary,
+            fontSize = 9.sp
           )
 
-          // Red dot indicator under Today
+          // Indicator under Today
           if (item.isToday) {
             Box(
               modifier = Modifier
                 .padding(top = 2.dp)
-                .size(4.dp)
+                .size(3.dp)
                 .background(SwissCrimson, CircleShape)
             )
           } else {
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
           }
         }
       }
     }
 
-    // Baseline hairline
+    // Baseline Hairline
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .height(1.dp)
-        .background(SwissBorderLight)
+        .height(0.75.dp)
+        .background(SwissHairline)
     )
   }
 }

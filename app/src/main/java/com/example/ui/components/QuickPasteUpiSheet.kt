@@ -61,6 +61,7 @@ import com.example.data.model.TransactionItem
 import com.example.data.model.TransactionType
 import com.example.service.UpiParserEngine
 import com.example.ui.theme.MonospaceHeadline
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
@@ -134,15 +135,13 @@ fun QuickPasteUpiSheet(
       ) {
         Column {
           Text(
-            text = "SMART PARSER",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            text = "02 // UPI NOTIFICATION PARSER",
+            style = MonospaceMicro,
             color = SwissCrimson,
-            letterSpacing = 1.2.sp,
-            fontSize = 10.sp
+            letterSpacing = 1.2.sp
           )
           Text(
-            text = "Quick Paste UPI / SMS",
+            text = "Smart Payment Reader",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface

@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
@@ -122,15 +123,13 @@ fun SettingsModal(
       ) {
         Column {
           Text(
-            text = "CONFIGURATION",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            text = "SYSTEM CONFIGURATION",
+            style = MonospaceMicro,
             color = SwissCrimson,
-            letterSpacing = 1.2.sp,
-            fontSize = 10.sp
+            letterSpacing = 1.2.sp
           )
           Text(
-            text = "App Settings",
+            text = "App Preferences",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface

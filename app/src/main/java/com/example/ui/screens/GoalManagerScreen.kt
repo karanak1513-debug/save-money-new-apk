@@ -19,18 +19,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,13 +61,16 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CurrencyFormatter
 import com.example.data.model.FrequencyPref
 import com.example.data.model.Goal
-import com.example.ui.theme.MonospaceBody
+import com.example.ui.theme.MonospaceDisplay
 import com.example.ui.theme.MonospaceHeadline
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
+import com.example.ui.theme.SwissAlpineGreen
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissCrimsonLight
 import com.example.ui.theme.SwissDark
+import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
 import java.time.LocalDate
@@ -99,25 +101,25 @@ fun GoalManagerScreen(
         },
         containerColor = SwissDark,
         contentColor = Color.White,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier
           .padding(bottom = 12.dp)
           .testTag("create_goal_fab")
       ) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          modifier = Modifier.padding(horizontal = 8.dp)
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          modifier = Modifier.padding(horizontal = 4.dp)
         ) {
           Icon(
             imageVector = Icons.Default.Add,
             contentDescription = "New Goal",
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
           )
           Text(
-            text = "Create Goal",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold
+            text = "NEW TARGET",
+            style = MonospaceMicro,
+            letterSpacing = 1.2.sp
           )
         }
       }
@@ -128,82 +130,120 @@ fun GoalManagerScreen(
         .fillMaxSize()
         .padding(innerPadding)
         .testTag("goal_manager_list"),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+      contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-      // Header Section
+      // Editorial Header Section
       item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
         ) {
-          Column {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
             Text(
-              text = "PORTFOLIO TARGETS",
-              style = MaterialTheme.typography.labelSmall,
-              fontWeight = FontWeight.Bold,
-              color = SwissCrimson,
-              letterSpacing = 1.2.sp,
-              fontSize = 10.sp
+              text = "02 // CAPITAL TARGETS",
+              style = MonospaceMicro,
+              color = SwissTextTertiary,
+              letterSpacing = 1.5.sp
             )
             Text(
-              text = "Goal Manager",
-              style = MaterialTheme.typography.headlineLarge,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.onSurface,
-              letterSpacing = (-0.3).sp
+              text = "${goals.size} ACTIVE ALLOCATIONS",
+              style = MonospaceMicro,
+              color = SwissDark,
+              fontWeight = FontWeight.Bold
             )
           }
 
+          Spacer(modifier = Modifier.height(6.dp))
+
           Text(
-            text = "${goals.size} ACTIVE",
-            style = MonospaceSmall,
+            text = "Portfolio Goals",
+            style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            color = SwissTextTertiary,
-            fontSize = 11.sp
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.5).sp
+          )
+
+          Spacer(modifier = Modifier.height(10.dp))
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(0.75.dp)
+              .background(SwissHairline)
           )
         }
       }
 
-      // Active Goals List:
-      // Cards showing each active goal with target date countdown ("42 days remaining").
-      // Inline action triggers: Edit (Pencil) and Delete (Trash).
-      items(goals, key = { it.id }) { goal ->
+      // Empty State
+      if (goals.isEmpty()) {
+        item {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+              .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp))
+              .padding(32.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text(
+                text = "NO TARGETS CONFIGURED",
+                style = MonospaceMicro,
+                color = SwissTextTertiary,
+                letterSpacing = 1.2.sp
+              )
+              Spacer(modifier = Modifier.height(6.dp))
+              Text(
+                text = "Define your target capital, timeline, and pace below.",
+                style = MaterialTheme.typography.bodySmall,
+                color = SwissTextSecondary,
+                fontSize = 12.sp
+              )
+            }
+          }
+        }
+      }
+
+      // Active Goals List
+      itemsIndexed(goals, key = { _, goal -> goal.id }) { index, goal ->
         val todayEpoch = LocalDate.now().toEpochDay()
         val rawDaysRemaining = goal.deadlineEpochDay - todayEpoch
         val isExpired = rawDaysRemaining <= 0
         val daysRemaining = max(0L, rawDaysRemaining)
         val progress = goal.progressFraction
         val animatedProgress by animateFloatAsState(
-          targetValue = progress,
+          targetValue = progress.coerceIn(0f, 1f),
           animationSpec = tween(durationMillis = 600),
           label = "goal_item_progress_${goal.id}"
         )
 
-        // Frequency run-rate calculation
         val dailyPace = if (!isExpired && daysRemaining > 0) goal.remainingAmount / daysRemaining else 0.0
         val runRateText = when {
-          isExpired -> "Deadline elapsed"
-          goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount -> "Target achieved!"
-          goal.frequencyPref == FrequencyPref.DAILY -> "${CurrencyFormatter.formatRupee(dailyPace)} / day"
-          goal.frequencyPref == FrequencyPref.WEEKLY -> "${CurrencyFormatter.formatRupee(dailyPace * 7)} / week"
-          else -> "${CurrencyFormatter.formatRupee(dailyPace * 30)} / month"
+          isExpired -> "EXPIRED"
+          goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount -> "ACHIEVED"
+          goal.frequencyPref == FrequencyPref.DAILY -> "${CurrencyFormatter.formatRupee(dailyPace)} / DAY"
+          goal.frequencyPref == FrequencyPref.WEEKLY -> "${CurrencyFormatter.formatRupee(dailyPace * 7)} / WEEK"
+          else -> "${CurrencyFormatter.formatRupee(dailyPace * 30)} / MONTH"
         }
 
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             .border(
-              width = if (goal.isPrimary) 1.5.dp else 1.dp,
+              width = if (goal.isPrimary) 1.25.dp else 0.75.dp,
               color = if (goal.isPrimary) SwissDark else SwissBorder,
-              shape = RoundedCornerShape(12.dp)
+              shape = RoundedCornerShape(10.dp)
             )
-            .padding(16.dp)
+            .padding(18.dp)
             .testTag("goal_card_${goal.id}")
         ) {
-          // Top Row: Goal Title & Action Triggers
+          // Top Row: Index + Title + Action Triggers
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -214,18 +254,22 @@ fun GoalManagerScreen(
               horizontalArrangement = Arrangement.spacedBy(8.dp),
               modifier = Modifier.weight(1f)
             ) {
+              Text(
+                text = String.format(Locale.US, "%02d //", index + 1),
+                style = MonospaceMicro,
+                color = SwissTextTertiary
+              )
+
               if (goal.isPrimary) {
                 Box(
                   modifier = Modifier
-                    .background(SwissCrimsonLight, RoundedCornerShape(4.dp))
+                    .background(SwissCrimsonLight, RoundedCornerShape(3.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                   Text(
                     text = "PRIMARY",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SwissCrimson,
-                    fontSize = 9.sp
+                    style = MonospaceMicro,
+                    color = SwissCrimson
                   )
                 }
               }
@@ -234,27 +278,28 @@ fun GoalManagerScreen(
                 text = goal.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
               )
             }
 
-            // Inline Action Triggers: Primary Star, Edit (Pencil), Delete (Trash)
+            // Action Triggers
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(4.dp)
+              horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
               if (!goal.isPrimary) {
                 IconButton(
                   onClick = { onSetPrimary(goal.id) },
                   modifier = Modifier
-                    .size(34.dp)
+                    .size(30.dp)
                     .testTag("set_primary_goal_${goal.id}")
                 ) {
                   Icon(
                     imageVector = Icons.Outlined.StarBorder,
                     contentDescription = "Set Primary",
                     tint = SwissTextSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                   )
                 }
               }
@@ -265,34 +310,34 @@ fun GoalManagerScreen(
                   showGoalSheet = true
                 },
                 modifier = Modifier
-                  .size(34.dp)
+                  .size(30.dp)
                   .testTag("edit_goal_button_${goal.id}")
               ) {
                 Icon(
                   imageVector = Icons.Default.Edit,
                   contentDescription = "Edit Goal",
                   tint = SwissTextSecondary,
-                  modifier = Modifier.size(17.dp)
+                  modifier = Modifier.size(15.dp)
                 )
               }
 
               IconButton(
                 onClick = { onDeleteGoal(goal) },
                 modifier = Modifier
-                  .size(34.dp)
+                  .size(30.dp)
                   .testTag("delete_goal_button_${goal.id}")
               ) {
                 Icon(
                   imageVector = Icons.Default.DeleteOutline,
                   contentDescription = "Delete Goal",
                   tint = SwissCrimson,
-                  modifier = Modifier.size(18.dp)
+                  modifier = Modifier.size(16.dp)
                 )
               }
             }
           }
 
-          Spacer(modifier = Modifier.height(10.dp))
+          Spacer(modifier = Modifier.height(12.dp))
 
           // Saved vs Target Monospace
           Row(
@@ -300,23 +345,33 @@ fun GoalManagerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
           ) {
-            Text(
-              text = "${CurrencyFormatter.formatRupee(goal.savedAmount)} / ${CurrencyFormatter.formatRupee(goal.targetAmount)}",
-              style = MonospaceHeadline,
-              color = MaterialTheme.colorScheme.onSurface,
-              fontSize = 18.sp
-            )
+            Column {
+              Text(
+                text = "SAVED / TARGET",
+                style = MonospaceMicro,
+                color = SwissTextTertiary,
+                letterSpacing = 0.8.sp
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = "${CurrencyFormatter.formatRupee(goal.savedAmount)} / ${CurrencyFormatter.formatRupee(goal.targetAmount)}",
+                style = MonospaceHeadline,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 17.sp
+              )
+            }
 
-            // Target date countdown ("42 days remaining" or "Expired")
             Box(
               modifier = Modifier
-                .background(if (isExpired) SwissCrimsonLight else Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .background(
+                  if (isExpired) SwissCrimsonLight else Color(0xFFF3F3F1),
+                  RoundedCornerShape(4.dp)
+                )
+                .padding(horizontal = 7.dp, vertical = 3.dp)
             ) {
               Text(
-                text = if (isExpired) "Expired" else "$daysRemaining days remaining",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                text = if (isExpired) "EXPIRED" else "$daysRemaining D LEFT",
+                style = MonospaceMicro,
                 color = if (isExpired) SwissCrimson else SwissDark
               )
             }
@@ -324,41 +379,44 @@ fun GoalManagerScreen(
 
           Spacer(modifier = Modifier.height(10.dp))
 
-          // 4px flat progress line
+          // Precision Progress Line
           Box(
             modifier = Modifier
               .fillMaxWidth()
               .height(4.dp)
-              .background(Color(0xFFE5E7EB), RoundedCornerShape(2.dp))
+              .background(Color(0xFFEEEEEE), RoundedCornerShape(2.dp))
           ) {
             Box(
               modifier = Modifier
                 .fillMaxWidth(animatedProgress)
                 .height(4.dp)
-                .background(if (goal.isPrimary) SwissCrimson else SwissDark, RoundedCornerShape(2.dp))
+                .background(
+                  if (goal.isPrimary) SwissCrimson else SwissDark,
+                  RoundedCornerShape(2.dp)
+                )
             )
           }
 
           Spacer(modifier = Modifier.height(10.dp))
 
-          // Footer: Priority run-rate & percentage
+          // Footer: Pace & percentage
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = "Pace: $runRateText",
-              style = MaterialTheme.typography.bodySmall,
+              text = "PACE: $runRateText",
+              style = MonospaceMicro,
               color = SwissTextSecondary,
-              fontWeight = FontWeight.Medium
+              letterSpacing = 0.5.sp
             )
 
             Text(
-              text = "${(progress * 100).toInt()}% completed",
-              style = MonospaceSmall,
-              fontWeight = FontWeight.Bold,
-              color = SwissDark
+              text = String.format(Locale.US, "%.0f%% ALLOCATED", progress * 100),
+              style = MonospaceMicro,
+              color = if (progress >= 1f) SwissAlpineGreen else SwissDark,
+              fontWeight = FontWeight.Bold
             )
           }
         }
@@ -370,7 +428,7 @@ fun GoalManagerScreen(
     }
   }
 
-  // "Create / Edit Goal" Form Sheet:
+  // "Create / Edit Goal" Form Sheet
   if (showGoalSheet) {
     CreateEditGoalModal(
       initialGoal = editingGoal,
@@ -393,7 +451,11 @@ fun CreateEditGoalModal(
   val context = LocalContext.current
   var goalTitle by remember { mutableStateOf(initialGoal?.title ?: "") }
   var targetAmountText by remember {
-    mutableStateOf(initialGoal?.targetAmount?.let { if (it % 1 == 0.0) it.toLong().toString() else it.toString() } ?: "")
+    mutableStateOf(
+      initialGoal?.targetAmount?.let {
+        if (it % 1 == 0.0) it.toLong().toString() else it.toString()
+      } ?: ""
+    )
   }
   var deadlineEpochDay by remember {
     mutableStateOf(initialGoal?.deadlineEpochDay ?: (LocalDate.now().toEpochDay() + 42))
@@ -402,7 +464,7 @@ fun CreateEditGoalModal(
   var errorMessage by remember { mutableStateOf<String?>(null) }
 
   val deadlineDate = LocalDate.ofEpochDay(deadlineEpochDay)
-  val dateFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.ENGLISH)
+  val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
@@ -414,10 +476,9 @@ fun CreateEditGoalModal(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(20.dp)
+        .padding(22.dp)
         .testTag("create_goal_form_sheet")
     ) {
-      // Header
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -425,15 +486,13 @@ fun CreateEditGoalModal(
       ) {
         Column {
           Text(
-            text = if (initialGoal != null) "EDIT TARGET" else "NEW TARGET",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            text = if (initialGoal != null) "MODIFY ALLOCATION" else "NEW ALLOCATION",
+            style = MonospaceMicro,
             color = SwissCrimson,
-            letterSpacing = 1.2.sp,
-            fontSize = 10.sp
+            letterSpacing = 1.2.sp
           )
           Text(
-            text = if (initialGoal != null) "Modify Goal" else "Create Savings Goal",
+            text = if (initialGoal != null) "Edit Goal" else "Define Savings Goal",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -453,14 +512,12 @@ fun CreateEditGoalModal(
 
       Spacer(modifier = Modifier.height(18.dp))
 
-      // Input: Goal Name (e.g., "Bike Fund")
+      // Goal Title
       Text(
-        text = "GOAL NAME",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
+        text = "TARGET TITLE",
+        style = MonospaceMicro,
         color = SwissTextTertiary,
-        fontSize = 10.sp
+        letterSpacing = 1.sp
       )
       Spacer(modifier = Modifier.height(4.dp))
       OutlinedTextField(
@@ -469,28 +526,26 @@ fun CreateEditGoalModal(
           goalTitle = it
           errorMessage = null
         },
-        placeholder = { Text("e.g. Bike Fund, Reserve Target") },
+        placeholder = { Text("e.g. Emergency Reserve, Vehicle") },
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
           focusedBorderColor = SwissDark,
           unfocusedBorderColor = SwissBorder
         ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         modifier = Modifier
           .fillMaxWidth()
           .testTag("goal_name_input")
       )
 
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
-      // Input: Target Amount (₹ with numeric pad)
+      // Target Amount
       Text(
-        text = "TARGET AMOUNT (₹)",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
+        text = "TARGET SUM (₹)",
+        style = MonospaceMicro,
         color = SwissTextTertiary,
-        fontSize = 10.sp
+        letterSpacing = 1.sp
       )
       Spacer(modifier = Modifier.height(4.dp))
       OutlinedTextField(
@@ -509,7 +564,7 @@ fun CreateEditGoalModal(
             modifier = Modifier.padding(start = 12.dp)
           )
         },
-        placeholder = { Text("80000", style = MonospaceHeadline, color = SwissTextTertiary) },
+        placeholder = { Text("100000", style = MonospaceHeadline, color = SwissTextTertiary) },
         textStyle = MonospaceHeadline,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
@@ -517,29 +572,27 @@ fun CreateEditGoalModal(
           focusedBorderColor = SwissDark,
           unfocusedBorderColor = SwissBorder
         ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         modifier = Modifier
           .fillMaxWidth()
           .testTag("goal_amount_input")
       )
 
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
-      // Date Picker: Target Deadline calendar selector
+      // Date Picker
       Text(
-        text = "TARGET DEADLINE",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
+        text = "DEADLINE HORIZON",
+        style = MonospaceMicro,
         color = SwissTextTertiary,
-        fontSize = 10.sp
+        letterSpacing = 1.sp
       )
       Spacer(modifier = Modifier.height(4.dp))
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-          .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+          .background(Color(0xFFF9F9F8), RoundedCornerShape(6.dp))
+          .border(0.75.dp, SwissBorder, RoundedCornerShape(6.dp))
           .clickable {
             val picker = DatePickerDialog(
               context,
@@ -553,7 +606,7 @@ fun CreateEditGoalModal(
             )
             picker.show()
           }
-          .padding(horizontal = 14.dp, vertical = 14.dp)
+          .padding(horizontal = 14.dp, vertical = 13.dp)
           .testTag("goal_deadline_picker"),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -566,42 +619,39 @@ fun CreateEditGoalModal(
             imageVector = Icons.Default.CalendarMonth,
             contentDescription = null,
             tint = SwissDark,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
           )
           Text(
-            text = deadlineDate.format(dateFormatter),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            text = deadlineDate.format(dateFormatter).uppercase(),
+            style = MonospaceSmall,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
           )
         }
 
         val daysLeft = max(0L, deadlineEpochDay - LocalDate.now().toEpochDay())
         Text(
-          text = "$daysLeft days left",
-          style = MaterialTheme.typography.labelSmall,
-          color = SwissTextSecondary,
-          fontWeight = FontWeight.Medium
+          text = "$daysLeft DAYS LEFT",
+          style = MonospaceMicro,
+          color = SwissTextSecondary
         )
       }
 
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
-      // Frequency Preference: Toggle priority run-rate display (Daily / Weekly / Monthly)
+      // Frequency Preference
       Text(
-        text = "PACING FREQUENCY PREFERENCE",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
+        text = "FREQUENCY METRIC",
+        style = MonospaceMicro,
         color = SwissTextTertiary,
-        fontSize = 10.sp
+        letterSpacing = 1.sp
       )
       Spacer(modifier = Modifier.height(6.dp))
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-          .padding(4.dp)
+          .background(Color(0xFFF3F3F1), RoundedCornerShape(6.dp))
+          .padding(3.dp)
       ) {
         FrequencyPref.values().forEach { pref ->
           val isSelected = frequencyPref == pref
@@ -610,16 +660,15 @@ fun CreateEditGoalModal(
               .weight(1f)
               .background(
                 color = if (isSelected) SwissDark else Color.Transparent,
-                shape = RoundedCornerShape(6.dp)
+                shape = RoundedCornerShape(4.dp)
               )
               .clickable { frequencyPref = pref }
-              .padding(vertical = 10.dp),
+              .padding(vertical = 9.dp),
             contentAlignment = Alignment.Center
           ) {
             Text(
-              text = pref.displayName,
-              style = MaterialTheme.typography.labelMedium,
-              fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+              text = pref.displayName.uppercase(),
+              style = MonospaceMicro,
               color = if (isSelected) Color.White else SwissTextSecondary
             )
           }
@@ -635,9 +684,8 @@ fun CreateEditGoalModal(
         )
       }
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(20.dp))
 
-      // Button: "Save Goal" (Solid Black with white text)
       Button(
         onClick = {
           if (goalTitle.isBlank()) {
@@ -671,20 +719,20 @@ fun CreateEditGoalModal(
           containerColor = SwissDark,
           contentColor = Color.White
         ),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         modifier = Modifier
           .fillMaxWidth()
-          .height(52.dp)
+          .height(50.dp)
           .testTag("save_goal_button")
       ) {
         Text(
-          text = "Save Goal",
-          style = MaterialTheme.typography.labelLarge,
-          fontWeight = FontWeight.Bold
+          text = "SAVE TARGET",
+          style = MonospaceMicro,
+          letterSpacing = 1.2.sp
         )
       }
 
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(8.dp))
     }
   }
 }

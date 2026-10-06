@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,14 +30,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
-import com.example.ui.theme.SwissCrimsonLight
 import com.example.ui.theme.SwissDark
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
@@ -51,18 +49,17 @@ fun SplashScreen(
 ) {
   val infiniteTransition = rememberInfiniteTransition(label = "splash_pulse")
   val pulseScale by infiniteTransition.animateFloat(
-    initialValue = 0.96f,
-    targetValue = 1.04f,
+    initialValue = 0.98f,
+    targetValue = 1.03f,
     animationSpec = infiniteRepeatable(
-      animation = tween(1000, easing = FastOutSlowInEasing),
+      animation = tween(900, easing = FastOutSlowInEasing),
       repeatMode = RepeatMode.Reverse
     ),
     label = "pulse_scale"
   )
 
   LaunchedEffect(Unit) {
-    // Elegant minimum splash display duration before routing
-    delay(1200)
+    delay(1100)
     onSplashFinished()
   }
 
@@ -77,94 +74,92 @@ fun SplashScreen(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.Center
     ) {
-      // Minimalist Geometric Rupee Emblem
+      // High-precision Architectural Emblem
       Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-          .size(96.dp)
+          .size(88.dp)
           .scale(pulseScale)
           .background(MaterialTheme.colorScheme.surface, CircleShape)
-          .border(2.dp, SwissBorder, CircleShape)
+          .border(1.dp, SwissBorder, CircleShape)
       ) {
-        Canvas(modifier = Modifier.size(54.dp)) {
-          val stroke = 5.dp.toPx()
-          val crimson = Color(0xFFD32F2F)
-          val dark = Color(0xFF111111)
+        Canvas(modifier = Modifier.size(46.dp)) {
+          val stroke = 4.5f.dp.toPx()
+          val crimson = Color(0xFFE11D48)
+          val dark = Color(0xFF090A0C)
 
-          // Upper Rupee horizontal bar (Crimson accent)
+          // Top crossbar
           drawLine(
             color = crimson,
-            start = Offset(4f, 8f),
-            end = Offset(size.width - 4f, 8f),
+            start = Offset(2f, 6f),
+            end = Offset(size.width - 2f, 6f),
             strokeWidth = stroke
           )
 
-          // Second Rupee horizontal bar (Dark)
+          // Sub-bar
           drawLine(
             color = dark,
-            start = Offset(4f, 24f),
-            end = Offset(size.width * 0.75f, 24f),
+            start = Offset(2f, 20f),
+            end = Offset(size.width * 0.72f, 20f),
             strokeWidth = stroke
           )
 
-          // Central curved stem
+          // Vertical spine
           drawLine(
             color = dark,
-            start = Offset(size.width * 0.28f, 8f),
+            start = Offset(size.width * 0.28f, 6f),
             end = Offset(size.width * 0.28f, size.height * 0.58f),
             strokeWidth = stroke
           )
 
-          // Diagonal kick
+          // Diagonal terminal kick
           drawLine(
             color = crimson,
             start = Offset(size.width * 0.25f, size.height * 0.52f),
-            end = Offset(size.width * 0.85f, size.height - 4f),
+            end = Offset(size.width * 0.88f, size.height - 2f),
             strokeWidth = stroke
           )
         }
       }
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(26.dp))
 
       // Stark Swiss Brand Title
       Text(
         text = "SANCHAY",
         style = MaterialTheme.typography.headlineLarge,
-        fontWeight = FontWeight.Black,
+        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,
-        letterSpacing = 4.sp,
-        fontSize = 28.sp
+        letterSpacing = 5.sp,
+        fontSize = 26.sp
       )
 
       Spacer(modifier = Modifier.height(6.dp))
 
       Text(
-        text = "PERSONAL MANUAL SAVINGS TRACKER",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
+        text = "EDITORIAL CAPITAL DISCIPLINE // ED. 2026",
+        style = MonospaceMicro,
         color = SwissTextTertiary,
-        letterSpacing = 1.6.sp,
-        fontSize = 10.sp
+        letterSpacing = 1.5.sp
       )
 
-      Spacer(modifier = Modifier.height(48.dp))
+      Spacer(modifier = Modifier.height(44.dp))
 
-      // Loading Session indicator
+      // Loading Session Indicator
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         Box(
           modifier = Modifier
-            .size(8.dp)
+            .size(6.dp)
             .background(SwissCrimson, CircleShape)
         )
         Text(
-          text = "Checking session & ledger...",
-          style = MonospaceSmall,
+          text = "SYNCHRONIZING PERSISTENT SESSION...",
+          style = MonospaceMicro,
           color = SwissTextSecondary,
-          fontSize = 11.sp
+          letterSpacing = 1.sp
         )
       }
     }

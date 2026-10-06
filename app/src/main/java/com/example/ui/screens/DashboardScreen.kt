@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -50,12 +51,14 @@ import com.example.ui.components.WeeklyBarChart
 import com.example.ui.theme.ChannelCash
 import com.example.ui.theme.ChannelOther
 import com.example.ui.theme.ChannelUpi
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.MonospaceSmall
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissCrimsonBorder
 import com.example.ui.theme.SwissCrimsonLight
 import com.example.ui.theme.SwissDark
+import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
 
@@ -82,28 +85,27 @@ fun DashboardScreen(
     floatingActionButton = {
       ExtendedFloatingActionButton(
         onClick = onOpenAddEntry,
-        containerColor = SwissCrimson,
+        containerColor = SwissDark,
         contentColor = Color.White,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier
           .padding(bottom = 12.dp)
           .testTag("floating_add_entry_button")
       ) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          modifier = Modifier.padding(horizontal = 8.dp)
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          modifier = Modifier.padding(horizontal = 4.dp)
         ) {
           Icon(
             imageVector = Icons.Default.Add,
             contentDescription = "Add Entry",
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
           )
           Text(
-            text = "Add Entry",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp
+            text = "LOG ENTRY",
+            style = MonospaceMicro,
+            letterSpacing = 1.2.sp
           )
         }
       }
@@ -114,92 +116,102 @@ fun DashboardScreen(
         .fillMaxSize()
         .padding(innerPadding)
         .testTag("dashboard_scroll_container"),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+      contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-      // 1. Header: Greeting, Streak Badge & Quick Actions
+      // 1. Editorial Masthead
       item {
-        Row(
+        Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
+            .padding(bottom = 4.dp)
         ) {
           Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
           ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(8.dp)
+                  .background(SwissCrimson, CircleShape)
+              )
+              Text(
+                text = "SANCHAY // CAPITAL TRACKER",
+                style = MonospaceMicro,
+                color = SwissTextTertiary,
+                letterSpacing = 1.5.sp
+              )
+            }
+
+            IconButton(
+              onClick = onOpenSettings,
+              modifier = Modifier
+                .size(34.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
+                .border(0.75.dp, SwissBorder, RoundedCornerShape(6.dp))
+                .testTag("settings_icon_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "Settings",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column {
+              Text(
+                text = "PORTFOLIO",
+                style = MonospaceMicro,
+                color = SwissTextTertiary,
+                letterSpacing = 1.sp
+              )
+              Text(
+                text = userName.ifBlank { "Client" },
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                letterSpacing = (-0.5).sp
+              )
+            }
+
+            // Streak Counter Badge
             Box(
               modifier = Modifier
-                .size(40.dp)
-                .background(SwissDark, CircleShape)
-                .border(1.dp, SwissBorder, CircleShape),
-              contentAlignment = Alignment.Center
+                .background(SwissCrimsonLight, RoundedCornerShape(4.dp))
+                .border(0.75.dp, SwissCrimsonBorder, RoundedCornerShape(4.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .testTag("streak_badge")
             ) {
               Text(
-                text = userName.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-              )
-            }
-
-            Column {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-              ) {
-                Text(
-                  text = "Namaste, $userName",
-                  style = MaterialTheme.typography.headlineMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.onSurface,
-                  letterSpacing = (-0.3).sp
-                )
-
-                // Feature 2: Daily Streak Counter Badge
-                Box(
-                  modifier = Modifier
-                    .background(SwissCrimsonLight, RoundedCornerShape(12.dp))
-                    .border(1.dp, SwissCrimsonBorder, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                    .testTag("streak_badge")
-                ) {
-                  Text(
-                    text = if (dailyStreak > 0) "🔥 $dailyStreak Day Streak" else "🔥 0 Day Streak",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SwissCrimson,
-                    fontSize = 11.sp
-                  )
-                }
-              }
-
-              Text(
-                text = "Minimalist Manual Savings Tracker",
-                style = MaterialTheme.typography.bodySmall,
-                color = SwissTextSecondary,
-                letterSpacing = 0.2.sp
+                text = if (dailyStreak > 0) "🔥 ${dailyStreak}D STREAK" else "🔥 0D STREAK",
+                style = MonospaceMicro,
+                color = SwissCrimson,
+                letterSpacing = 0.5.sp
               )
             }
           }
 
-          IconButton(
-            onClick = onOpenSettings,
+          Spacer(modifier = Modifier.height(12.dp))
+          Box(
             modifier = Modifier
-              .size(40.dp)
-              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-              .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
-              .testTag("settings_icon_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.Tune,
-              contentDescription = "Settings",
-              tint = MaterialTheme.colorScheme.onSurface,
-              modifier = Modifier.size(20.dp)
-            )
-          }
+              .fillMaxWidth()
+              .height(0.75.dp)
+              .background(SwissHairline)
+          )
         }
       }
 
@@ -207,12 +219,10 @@ fun DashboardScreen(
       item {
         Column(modifier = Modifier.fillMaxWidth()) {
           Text(
-            text = "QUICK-ADD PRESETS",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
+            text = "QUICK ALLOCATION PRESETS",
+            style = MonospaceMicro,
             color = SwissTextTertiary,
-            fontSize = 10.sp,
+            letterSpacing = 1.2.sp,
             modifier = Modifier.padding(bottom = 6.dp)
           )
 
@@ -230,8 +240,8 @@ fun DashboardScreen(
               Box(
                 modifier = Modifier
                   .weight(1f)
-                  .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
-                  .border(1.dp, SwissBorder, RoundedCornerShape(20.dp))
+                  .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
+                  .border(1.dp, SwissBorder, RoundedCornerShape(6.dp))
                   .clickable { onQuickAddPreset(amount) }
                   .padding(vertical = 10.dp)
                   .testTag("quick_add_${amount.toInt()}"),
@@ -242,7 +252,7 @@ fun DashboardScreen(
                   style = MonospaceSmall,
                   fontWeight = FontWeight.Bold,
                   color = MaterialTheme.colorScheme.onSurface,
-                  fontSize = 13.sp
+                  fontSize = 12.sp
                 )
               }
             }
@@ -255,10 +265,10 @@ fun DashboardScreen(
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
-            .border(1.dp, SwissBorder, RoundedCornerShape(10.dp))
+            .background(Color(0xFFF9F9F8), RoundedCornerShape(8.dp))
+            .border(0.75.dp, SwissHairline, RoundedCornerShape(8.dp))
             .clickable { onOpenQuickPaste() }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .testTag("quick_paste_action_banner"),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
@@ -269,26 +279,26 @@ fun DashboardScreen(
           ) {
             Box(
               modifier = Modifier
-                .size(32.dp)
-                .background(SwissCrimsonLight, RoundedCornerShape(6.dp)),
+                .size(28.dp)
+                .background(SwissCrimsonLight, RoundedCornerShape(4.dp)),
               contentAlignment = Alignment.Center
             ) {
               Icon(
                 imageVector = Icons.Default.Bolt,
                 contentDescription = null,
                 tint = SwissCrimson,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
               )
             }
             Column {
               Text(
-                text = "Quick Paste UPI / SMS",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                text = "QUICK PASTE UPI / SMS",
+                style = MonospaceMicro,
+                letterSpacing = 0.8.sp,
                 color = MaterialTheme.colorScheme.onSurface
               )
               Text(
-                text = "Auto-parse amount, type & merchant instantly",
+                text = "Parse bank notifications & debits instantly",
                 style = MaterialTheme.typography.bodySmall,
                 color = SwissTextSecondary,
                 fontSize = 11.sp
@@ -298,20 +308,19 @@ fun DashboardScreen(
 
           Box(
             modifier = Modifier
-              .background(SwissDark, RoundedCornerShape(6.dp))
-              .padding(horizontal = 10.dp, vertical = 6.dp)
+              .background(SwissDark, RoundedCornerShape(4.dp))
+              .padding(horizontal = 9.dp, vertical = 5.dp)
           ) {
             Text(
-              text = "Paste",
-              style = MaterialTheme.typography.labelSmall,
-              fontWeight = FontWeight.Bold,
+              text = "PASTE",
+              style = MonospaceMicro,
               color = Color.White
             )
           }
         }
       }
 
-      // 2. Primary Goal Card (Non-overlapping 2-column layout)
+      // 2. Primary Goal Card
       item {
         PrimaryGoalCard(
           goal = primaryGoal,
@@ -320,16 +329,14 @@ fun DashboardScreen(
         )
       }
 
-      // 4. Bucket Summary Chips (Horizontal)
+      // 4. Savings Bucket Chips
       item {
         Column(modifier = Modifier.fillMaxWidth()) {
           Text(
-            text = "SAVINGS BUCKETS",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
+            text = "LIQUIDITY CHANNELS",
+            style = MonospaceMicro,
             color = SwissTextTertiary,
-            fontSize = 10.sp,
+            letterSpacing = 1.2.sp,
             modifier = Modifier.padding(bottom = 8.dp)
           )
 
@@ -346,8 +353,8 @@ fun DashboardScreen(
 
               Box(
                 modifier = Modifier
-                  .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                  .border(1.dp, SwissBorder, RoundedCornerShape(8.dp))
+                  .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp))
+                  .border(0.75.dp, SwissBorder, RoundedCornerShape(6.dp))
                   .clickable { onChannelFilterClick(item.channel) }
                   .padding(horizontal = 12.dp, vertical = 8.dp)
                   .testTag("bucket_chip_${item.channel.name.lowercase()}")
@@ -358,20 +365,20 @@ fun DashboardScreen(
                 ) {
                   Box(
                     modifier = Modifier
-                      .size(8.dp)
+                      .size(6.dp)
                       .background(indicatorColor, CircleShape)
                   )
                   Text(
-                    text = "${item.channel.displayName}:",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium,
+                    text = "${item.channel.displayName.uppercase()}:",
+                    style = MonospaceMicro,
                     color = SwissTextSecondary
                   )
                   Text(
                     text = CurrencyFormatter.formatRupee(item.amount),
                     style = MonospaceSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 11.sp
                   )
                 }
               }
@@ -380,30 +387,30 @@ fun DashboardScreen(
         }
       }
 
-      // Empty state notice if zero transactions exist
+      // Empty State Notice
       if (!hasTransactions) {
         item {
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-              .border(1.dp, SwissBorder, RoundedCornerShape(12.dp))
+              .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+              .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp))
               .padding(20.dp),
             contentAlignment = Alignment.Center
           ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
               Text(
-                text = "NO TRANSACTIONS YET",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
+                text = "NO TRANSACTIONS RECORDED",
+                style = MonospaceMicro,
                 color = SwissTextTertiary,
-                letterSpacing = 1.sp
+                letterSpacing = 1.2.sp
               )
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = "Add your first entry below or paste a UPI payment SMS above.",
+                text = "Add your first entry or paste a UPI payment notification above.",
                 style = MaterialTheme.typography.bodySmall,
-                color = SwissTextSecondary
+                color = SwissTextSecondary,
+                fontSize = 12.sp
               )
             }
           }

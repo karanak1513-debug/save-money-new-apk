@@ -46,11 +46,13 @@ import com.example.ui.screens.GoalManagerScreen
 import com.example.ui.screens.HistoryLedgerScreen
 import com.example.ui.screens.SignInScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.theme.MonospaceMicro
 import com.example.ui.theme.SanchayTheme
 import com.example.ui.theme.SwissBorder
 import com.example.ui.theme.SwissCrimson
 import com.example.ui.theme.SwissDark
 import com.example.ui.theme.SwissTextSecondary
+import com.example.ui.theme.SwissTextTertiary
 import com.example.ui.viewmodel.NavigationTab
 import com.example.ui.viewmodel.SanchayViewModel
 
@@ -289,33 +291,32 @@ private fun SwissNavItem(
     verticalArrangement = Arrangement.Center,
     modifier = Modifier
       .clickable { onClick() }
-      .padding(horizontal = 16.dp, vertical = 6.dp)
+      .padding(horizontal = 18.dp, vertical = 6.dp)
       .testTag(testTag)
   ) {
     Icon(
       imageVector = icon,
       contentDescription = title,
-      tint = if (isSelected) SwissCrimson else SwissTextSecondary,
-      modifier = Modifier.size(20.dp)
+      tint = if (isSelected) SwissDark else SwissTextTertiary,
+      modifier = Modifier.size(19.dp)
     )
-    Spacer(modifier = Modifier.height(2.dp))
+    Spacer(modifier = Modifier.height(3.dp))
     Text(
       text = title.uppercase(),
-      style = MaterialTheme.typography.labelSmall,
-      fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-      color = if (isSelected) SwissDark else SwissTextSecondary,
-      fontSize = 10.sp,
-      letterSpacing = 0.5.sp
+      style = MonospaceMicro,
+      color = if (isSelected) SwissDark else SwissTextTertiary,
+      fontSize = 9.sp,
+      letterSpacing = 1.sp
     )
     if (isSelected) {
       Box(
         modifier = Modifier
-          .padding(top = 2.dp)
-          .size(width = 12.dp, height = 2.dp)
+          .padding(top = 3.dp)
+          .size(width = 16.dp, height = 2.dp)
           .background(SwissCrimson)
       )
     } else {
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(5.dp))
     }
   }
 }
