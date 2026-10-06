@@ -6,13 +6,16 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
-import com.example.R
+import com.example.SanchayApp
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.FirebaseApp
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,25 +24,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-sealed interface AuthState {
-  data object Initial : AuthState
-  data object Loading : AuthState
-  data class Authenticated(val user: FirebaseUser) : AuthState
-  data object Unauthenticated : AuthState
-  data class Error(val message: String) : AuthState
-}
-
 object AuthManager {
 
   private const val TAG = "AuthManager"
 
-  private fun getFirebaseAuth(): FirebaseAuth? {
-    return try {
-      FirebaseAuth.getInstance()
+  const val WEB_CLIENT_ID = SanchayApp.WEB_CLIENT_ID
+
+  /**
+   * Retrieves the live, connected FirebaseAuth instance.
+   */
+  fun getFirebaseAuth(): FirebaseAuth {
+    val app = try {
+      if (FirebaseApp.getApps(SanchayApp.instance).isNotEmpty()) {
+        FirebaseApp.getInstance()
+      } else {
+        SanchayApp.ensureFirebaseInitialized(SanchayApp.instance)
+      }
     } catch (e: Throwable) {
-      Log.w(TAG, "FirebaseAuth not ready or offline: ${e.message}")
-      null
+      SanchayApp.ensureFirebaseInitialized(SanchayApp.instance)
     }
+    return FirebaseAuth.getInstance(app)
   }
 
   private val _currentUserState = MutableStateFlow<FirebaseUser?>(null)
@@ -49,36 +53,31 @@ object AuthManager {
   val isAuthReady: StateFlow<Boolean> = _isAuthReady.asStateFlow()
 
   init {
-    // Check initial auth state strictly on Dispatchers.IO to never block the Android Main UI Thread
     CoroutineScope(Dispatchers.IO).launch {
       try {
         val fbAuth = getFirebaseAuth()
-        if (fbAuth != null) {
-          _currentUserState.value = fbAuth.currentUser
-          _isAuthReady.value = true
-          fbAuth.addAuthStateListener { firebaseAuth ->
-            _currentUserState.value = firebaseAuth.currentUser
-            _isAuthReady.value = true
-          }
-        } else {
+        _currentUserState.value = fbAuth.currentUser
+        _isAuthReady.value = true
+        fbAuth.addAuthStateListener { firebaseAuth ->
+          _currentUserState.value = firebaseAuth.currentUser
           _isAuthReady.value = true
         }
       } catch (e: Throwable) {
-        Log.w(TAG, "Error registering auth listener: ${e.message}")
+        Log.e(TAG, "Live FirebaseAuth state listener init: ${e.message}", e)
         _isAuthReady.value = true
       }
     }
   }
 
   val currentUser: FirebaseUser?
-    get() = runCatching { getFirebaseAuth()?.currentUser }.getOrNull()
+    get() = try { getFirebaseAuth().currentUser } catch (e: Throwable) { null }
 
   val isAuthenticated: Boolean
     get() = currentUser != null
 
   /**
-   * Google 1-Tap Sign-In using Android Jetpack CredentialManager and GetSignInWithGoogleOption.
-   * Completely wrapped in non-fatal fallbacks.
+   * Live Google 1-Tap Sign-In using Android Credential Manager.
+   * Authenticates directly via Firebase GoogleAuthProvider and saves user document in Firestore under users/{uid}.
    */
   fun signInWithGoogle(
     activity: Activity,
@@ -86,22 +85,11 @@ object AuthManager {
     onResult: (Boolean, String?) -> Unit
   ) {
     scope.launch(Dispatchers.Main) {
-      val fbAuth = getFirebaseAuth()
-      if (fbAuth == null) {
-        onResult(false, "Authentication service is operating in offline mode.")
-        return@launch
-      }
-
       try {
-        val serverClientId = try {
-          activity.getString(R.string.default_web_client_id)
-        } catch (t: Throwable) {
-          "41954701104-1eqfhs3s6p6naknnui85ab2hubaki4dc.apps.googleusercontent.com"
-        }
-
+        val fbAuth = getFirebaseAuth()
         val credentialManager = CredentialManager.create(activity)
 
-        val googleIdOption = GetSignInWithGoogleOption.Builder(serverClientId)
+        val googleIdOption = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID)
           .build()
 
         val request = GetCredentialRequest.Builder()
@@ -120,29 +108,54 @@ object AuthManager {
 
           val authCredential = GoogleAuthProvider.getCredential(idToken, null)
           val authResult = fbAuth.signInWithCredential(authCredential).await()
+          val user = authResult.user
 
-          if (authResult.user != null) {
-            _currentUserState.value = authResult.user
+          if (user != null) {
+            _currentUserState.value = user
+            persistUserProfile(user)
             onResult(true, null)
           } else {
-            onResult(false, "Authentication failed. No user profile returned.")
+            onResult(false, "Authentication completed, but no user profile was returned.")
           }
         } else {
           onResult(false, "Unexpected credential type received.")
         }
       } catch (e: GetCredentialCancellationException) {
-        Log.w(TAG, "Google Sign-In was cancelled by user.")
+        Log.i(TAG, "Google Sign-In prompt was cancelled by user.")
         onResult(false, "Sign-in was cancelled.")
       } catch (e: Throwable) {
-        Log.e(TAG, "Google Sign-In failed safely", e)
-        val msg = e.localizedMessage ?: "Google Sign-In network timeout or configuration issue."
+        Log.e(TAG, "Google Sign-In error: ${e.message}", e)
+        val msg = e.localizedMessage ?: "Google Sign-In network timeout or configuration error."
         onResult(false, msg)
       }
     }
   }
 
   /**
-   * Minimalist Email/Password sign-in or account creation.
+   * Persists authenticated user profile directly to Firestore under users/{uid}.
+   */
+  fun persistUserProfile(user: FirebaseUser) {
+    CoroutineScope(Dispatchers.IO).launch {
+      try {
+        val firestore = FirebaseFirestore.getInstance()
+        val userDoc = firestore.collection("users").document(user.uid)
+        val data = mapOf(
+          "uid" to user.uid,
+          "email" to (user.email ?: ""),
+          "displayName" to (user.displayName ?: ""),
+          "photoUrl" to (user.photoUrl?.toString() ?: ""),
+          "lastLoginAt" to Timestamp.now()
+        )
+        userDoc.set(data)
+        Log.i(TAG, "User profile synced to Firestore under users/${user.uid}")
+      } catch (e: Throwable) {
+        Log.w(TAG, "Failed syncing user profile to Firestore: ${e.message}")
+      }
+    }
+  }
+
+  /**
+   * Live Email/Password Sign-In & Sign-Up directly using FirebaseAuth.
    */
   fun signInWithEmailPassword(
     email: String,
@@ -166,13 +179,8 @@ object AuthManager {
     }
 
     scope.launch(Dispatchers.IO) {
-      val fbAuth = getFirebaseAuth()
-      if (fbAuth == null) {
-        onResult(false, "Authentication service is unavailable offline.")
-        return@launch
-      }
-
       try {
+        val fbAuth = getFirebaseAuth()
         val task = if (isSignUp) {
           fbAuth.createUserWithEmailAndPassword(cleanEmail, cleanPass)
         } else {
@@ -189,16 +197,17 @@ object AuthManager {
                 .build()
               user.updateProfile(profileUpdates).await()
             } catch (profileEx: Throwable) {
-              Log.w(TAG, "Failed to update user profile display name", profileEx)
+              Log.w(TAG, "Failed to update user profile display name: ${profileEx.message}")
             }
           }
           _currentUserState.value = user
+          persistUserProfile(user)
           onResult(true, null)
         } else {
           onResult(false, "Unable to complete authentication.")
         }
       } catch (e: Throwable) {
-        Log.e(TAG, "Email/Password auth error", e)
+        Log.e(TAG, "Email/Password live auth error", e)
         val readableMessage = when {
           e.message?.contains("The email address is badly formatted", ignoreCase = true) == true ->
             "The email address is incorrectly formatted."
@@ -210,7 +219,7 @@ object AuthManager {
             "An account already exists with this email. Please sign in instead."
           e.message?.contains("no user record corresponding", ignoreCase = true) == true ||
           e.message?.contains("user-not-found", ignoreCase = true) == true ->
-            "No account found with this email. Please switch to Create Account."
+            "No account found with this email. Switch to Create Account to register."
           else -> e.localizedMessage ?: "Authentication failed."
         }
         onResult(false, readableMessage)
@@ -220,9 +229,9 @@ object AuthManager {
 
   fun signOut() {
     try {
-      getFirebaseAuth()?.signOut()
+      getFirebaseAuth().signOut()
     } catch (e: Throwable) {
-      Log.w(TAG, "Sign out error ignored: ${e.message}")
+      Log.w(TAG, "Sign out error: ${e.message}")
     }
     _currentUserState.value = null
   }
