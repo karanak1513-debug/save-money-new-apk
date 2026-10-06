@@ -123,7 +123,6 @@ class SanchayViewModel(application: Application) : AndroidViewModel(application)
     val user = AuthManager.currentUser
     val name = user?.displayName
       ?: user?.email?.substringBefore("@")
-      ?: user?.phoneNumber
     if (!name.isNullOrBlank()) {
       updateUserName(name)
     }

@@ -316,7 +316,7 @@ fun SettingsModal(
               Column {
                 Text(
                   text = if (currentUser != null) {
-                    currentUser.displayName ?: currentUser.email ?: currentUser.phoneNumber ?: "Authenticated User"
+                    currentUser.displayName ?: currentUser.email ?: "Authenticated User"
                   } else {
                     "Offline Local Account"
                   },
@@ -326,10 +326,10 @@ fun SettingsModal(
                 )
                 Text(
                   text = if (currentUser != null) {
-                    val method = when {
-                      currentUser.providerData.any { it.providerId == "google.com" } -> "Google Account"
-                      currentUser.providerData.any { it.providerId == "phone" } -> "Phone OTP"
-                      else -> "Email & Password"
+                    val method = if (currentUser.providerData.any { it.providerId == "google.com" }) {
+                      "Google Account"
+                    } else {
+                      "Email & Password"
                     }
                     "Synced with $method"
                   } else {

@@ -80,10 +80,10 @@ class UpiNotificationService : NotificationListenerService() {
 
     // Strict transaction nature keywords
     private val debitKeywords = Regex(
-      """(?i)\b(paid|sent\s+to|debited|transferred\s+to|spent|purchase\s+at|payment\s+of)\b"""
+      """(?i)\b(paid|sent\s+to|debited|transferred\s+to|spent|purchase)\b"""
     )
     private val creditKeywords = Regex(
-      """(?i)\b(received|credited|added\s+to\s+account|deposited|cashback\s+received|refund)\b"""
+      """(?i)\b(received|credited|added|deposited|cashback)\b"""
     )
 
     // Merchant / recipient extraction regex
@@ -252,12 +252,17 @@ class UpiNotificationService : NotificationListenerService() {
     val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
     val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
     val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+    val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
 
     val combinedContent = buildString {
       if (!text.isNullOrBlank()) append(text)
       if (!bigText.isNullOrBlank() && bigText != text) {
         if (isNotEmpty()) append(" ")
         append(bigText)
+      }
+      if (!subText.isNullOrBlank()) {
+        if (isNotEmpty()) append(" ")
+        append(subText)
       }
     }
 

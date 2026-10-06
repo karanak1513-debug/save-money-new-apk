@@ -1,7 +1,6 @@
 package com.example.data.auth
 
 import android.app.Activity
-import android.content.Context
 import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -10,14 +9,10 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.example.R
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.firebase.FirebaseException
-import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 
 sealed interface AuthState {
   data object Initial : AuthState
@@ -56,7 +50,7 @@ object AuthManager {
     get() = auth.currentUser != null
 
   /**
-   * Google Sign-In using Android Jetpack CredentialManager and GetSignInWithGoogleOption.
+   * Google One-Tap Sign-In using Android Jetpack CredentialManager and GetSignInWithGoogleOption.
    */
   fun signInWithGoogle(
     activity: Activity,
@@ -107,107 +101,71 @@ object AuthManager {
   }
 
   /**
-   * Email/Password sign-in or account creation.
+   * Email/Password sign-in or account creation with optional display name.
    */
   fun signInWithEmailPassword(
     email: String,
     pass: String,
     isSignUp: Boolean,
+    displayName: String? = null,
     scope: CoroutineScope,
     onResult: (Boolean, String?) -> Unit
   ) {
-    if (email.isBlank() || pass.length < 6) {
-      onResult(false, "Please provide a valid email and at least 6-character password.")
+    val cleanEmail = email.trim()
+    val cleanPass = pass.trim()
+
+    if (cleanEmail.isBlank() || !cleanEmail.contains("@") || !cleanEmail.contains(".")) {
+      onResult(false, "Please enter a valid email address (e.g., name@example.com).")
+      return
+    }
+
+    if (cleanPass.length < 6) {
+      onResult(false, "Password must be at least 6 characters long.")
       return
     }
 
     scope.launch(Dispatchers.IO) {
       try {
         val task = if (isSignUp) {
-          auth.createUserWithEmailAndPassword(email.trim(), pass)
+          auth.createUserWithEmailAndPassword(cleanEmail, cleanPass)
         } else {
-          auth.signInWithEmailAndPassword(email.trim(), pass)
+          auth.signInWithEmailAndPassword(cleanEmail, cleanPass)
         }
         val result = task.await()
-        if (result.user != null) {
+        val user = result.user
+
+        if (user != null) {
+          if (isSignUp && !displayName.isNullOrBlank()) {
+            try {
+              val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(displayName.trim())
+                .build()
+              user.updateProfile(profileUpdates).await()
+            } catch (profileEx: Exception) {
+              Log.w(TAG, "Failed to update user profile display name", profileEx)
+            }
+          }
           onResult(true, null)
         } else {
           onResult(false, "Unable to complete authentication.")
         }
       } catch (e: Exception) {
         Log.e(TAG, "Email/Password auth error", e)
-        onResult(false, e.localizedMessage ?: "Authentication failed")
-      }
-    }
-  }
-
-  /**
-   * Initiate Phone Number OTP verification.
-   */
-  fun sendPhoneOtp(
-    activity: Activity,
-    phoneNumber: String,
-    onCodeSent: (String) -> Unit,
-    onError: (String) -> Unit
-  ) {
-    val formattedNumber = if (!phoneNumber.startsWith("+")) "+91$phoneNumber" else phoneNumber
-
-    val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-      override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-        // Auto-retrieval
-        auth.signInWithCredential(credential)
-      }
-
-      override fun onVerificationFailed(e: FirebaseException) {
-        Log.e(TAG, "Phone verification failed", e)
-        onError(e.localizedMessage ?: "Phone OTP verification failed.")
-      }
-
-      override fun onCodeSent(
-        verificationId: String,
-        token: PhoneAuthProvider.ForceResendingToken
-      ) {
-        Log.i(TAG, "OTP code sent to $formattedNumber")
-        onCodeSent(verificationId)
-      }
-    }
-
-    val options = PhoneAuthOptions.newBuilder(auth)
-      .setPhoneNumber(formattedNumber)
-      .setTimeout(60L, TimeUnit.SECONDS)
-      .setActivity(activity)
-      .setCallbacks(callbacks)
-      .build()
-
-    PhoneAuthProvider.verifyPhoneNumber(options)
-  }
-
-  /**
-   * Verify Phone OTP and sign in.
-   */
-  fun verifyPhoneOtp(
-    verificationId: String,
-    code: String,
-    scope: CoroutineScope,
-    onResult: (Boolean, String?) -> Unit
-  ) {
-    if (verificationId.isBlank() || code.length < 6) {
-      onResult(false, "Please enter a valid 6-digit OTP code.")
-      return
-    }
-
-    scope.launch(Dispatchers.IO) {
-      try {
-        val credential = PhoneAuthProvider.getCredential(verificationId, code.trim())
-        val result = auth.signInWithCredential(credential).await()
-        if (result.user != null) {
-          onResult(true, null)
-        } else {
-          onResult(false, "Invalid verification code.")
+        val readableMessage = when {
+          e.message?.contains("The email address is badly formatted", ignoreCase = true) == true ->
+            "The email address is incorrectly formatted."
+          e.message?.contains("The password is invalid", ignoreCase = true) == true ||
+          e.message?.contains("wrong password", ignoreCase = true) == true ||
+          e.message?.contains("invalid-credential", ignoreCase = true) == true ->
+            "Incorrect password or email combination. Please check your credentials."
+          e.message?.contains("email address is already in use", ignoreCase = true) == true ->
+            "An account already exists with this email address. Please sign in instead."
+          e.message?.contains("no user record corresponding", ignoreCase = true) == true ||
+          e.message?.contains("user-not-found", ignoreCase = true) == true ->
+            "No account found with this email. Switch to 'Create Account' to register."
+          else -> e.localizedMessage ?: "Authentication failed. Please verify your details."
         }
-      } catch (e: Exception) {
-        Log.e(TAG, "OTP verification error", e)
-        onResult(false, e.localizedMessage ?: "OTP verification failed")
+        onResult(false, readableMessage)
       }
     }
   }

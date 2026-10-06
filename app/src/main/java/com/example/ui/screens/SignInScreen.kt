@@ -2,6 +2,9 @@ package com.example.ui.screens
 
 import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,21 +22,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,10 +50,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.auth.AuthManager
@@ -61,10 +71,9 @@ import com.example.ui.theme.SwissHairline
 import com.example.ui.theme.SwissTextSecondary
 import com.example.ui.theme.SwissTextTertiary
 
-enum class AuthTab(val title: String) {
-  GOOGLE("GOOGLE"),
-  EMAIL("EMAIL"),
-  PHONE("PHONE OTP")
+enum class EmailAuthMode {
+  SIGN_IN,
+  CREATE_ACCOUNT
 }
 
 @Composable
@@ -76,21 +85,54 @@ fun SignInScreen(
   val context = LocalContext.current
   val activity = context as? Activity
   val scope = rememberCoroutineScope()
+  val focusManager = LocalFocusManager.current
 
-  var selectedTab by remember { mutableStateOf(AuthTab.GOOGLE) }
-  var isLoading by remember { mutableStateOf(false) }
+  var authMode by remember { mutableStateOf(EmailAuthMode.SIGN_IN) }
+  var isLoadingGoogle by remember { mutableStateOf(false) }
+  var isLoadingEmail by remember { mutableStateOf(false) }
   var errorMessage by remember { mutableStateOf<String?>(null) }
 
-  // Email form state
+  // Form Fields
+  var nameText by remember { mutableStateOf("") }
   var emailText by remember { mutableStateOf("") }
   var passwordText by remember { mutableStateOf("") }
-  var isSignUpMode by remember { mutableStateOf(false) }
+  var isPasswordVisible by remember { mutableStateOf(false) }
 
-  // Phone form state
-  var phoneText by remember { mutableStateOf("") }
-  var otpText by remember { mutableStateOf("") }
-  var verificationId by remember { mutableStateOf<String?>(null) }
-  var isOtpSent by remember { mutableStateOf(false) }
+  val isAnyLoading = isLoadingGoogle || isLoadingEmail
+
+  // Form Submission Handler
+  val submitEmailAuth: () -> Unit = {
+    focusManager.clearFocus()
+    errorMessage = null
+    val cleanEmail = emailText.trim()
+    val cleanPassword = passwordText.trim()
+
+    if (cleanEmail.isEmpty()) {
+      errorMessage = "Please enter your email address."
+    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+      errorMessage = "Invalid email format. Expected format: name@example.com"
+    } else if (cleanPassword.isEmpty()) {
+      errorMessage = "Please enter your password."
+    } else if (cleanPassword.length < 6) {
+      errorMessage = "Password must be at least 6 characters."
+    } else {
+      isLoadingEmail = true
+      AuthManager.signInWithEmailPassword(
+        email = cleanEmail,
+        pass = cleanPassword,
+        isSignUp = (authMode == EmailAuthMode.CREATE_ACCOUNT),
+        displayName = if (authMode == EmailAuthMode.CREATE_ACCOUNT) nameText.trim().ifEmpty { null } else null,
+        scope = scope
+      ) { success, err ->
+        isLoadingEmail = false
+        if (success) {
+          onAuthenticated()
+        } else if (err != null) {
+          errorMessage = err
+        }
+      }
+    }
+  }
 
   Box(
     modifier = modifier
@@ -109,20 +151,20 @@ fun SignInScreen(
       // Geometric Emblem
       Box(
         modifier = Modifier
-          .size(54.dp)
+          .size(52.dp)
           .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
           .border(0.75.dp, SwissBorder, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center
       ) {
         Text(
           text = "₹",
-          fontSize = 26.sp,
+          fontSize = 24.sp,
           fontWeight = FontWeight.Bold,
           color = SwissCrimson
         )
       }
 
-      Spacer(modifier = Modifier.height(18.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
       Text(
         text = "SANCHAY",
@@ -139,35 +181,106 @@ fun SignInScreen(
         letterSpacing = 1.2.sp
       )
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(28.dp))
 
-      // Segmented Tab Switcher
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(Color(0xFFF3F3F1), RoundedCornerShape(6.dp))
-          .padding(3.dp)
+      // Error Banner (Inline Red Error Indicator)
+      AnimatedVisibility(
+        visible = errorMessage != null,
+        enter = fadeIn(),
+        exit = fadeOut()
       ) {
-        AuthTab.values().forEach { tab ->
-          val isSelected = selectedTab == tab
+        if (errorMessage != null) {
           Box(
             modifier = Modifier
-              .weight(1f)
-              .background(
-                if (isSelected) SwissDark else Color.Transparent,
-                RoundedCornerShape(4.dp)
-              )
-              .clickable {
-                selectedTab = tab
-                errorMessage = null
-              }
-              .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
+              .fillMaxWidth()
+              .background(SwissCrimsonLight, RoundedCornerShape(6.dp))
+              .border(0.75.dp, SwissCrimson, RoundedCornerShape(6.dp))
+              .padding(horizontal = 14.dp, vertical = 10.dp)
+              .testTag("auth_error_banner")
           ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(6.dp)
+                  .background(SwissCrimson, CircleShape)
+              )
+              Text(
+                text = errorMessage!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = SwissCrimson,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 16.sp
+              )
+            }
+          }
+          Spacer(modifier = Modifier.height(16.dp))
+        }
+      }
+
+      // 1. Google One-Tap Sign-In (Primary Action)
+      Button(
+        onClick = {
+          if (activity != null) {
+            isLoadingGoogle = true
+            errorMessage = null
+            AuthManager.signInWithGoogle(activity, scope) { success, err ->
+              isLoadingGoogle = false
+              if (success) {
+                onAuthenticated()
+              } else if (err != null) {
+                errorMessage = err
+              }
+            }
+          } else {
+            errorMessage = "Android Activity context is unavailable for Google Sign-In."
+          }
+        },
+        enabled = !isAnyLoading,
+        colors = ButtonDefaults.buttonColors(
+          containerColor = SwissDark,
+          contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(52.dp)
+          .testTag("google_sign_in_button")
+      ) {
+        if (isLoadingGoogle) {
+          CircularProgressIndicator(
+            color = Color.White,
+            modifier = Modifier.size(18.dp),
+            strokeWidth = 2.dp
+          )
+        } else {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            // Google G Brand Icon
+            Box(
+              modifier = Modifier
+                .size(22.dp)
+                .background(Color.White, CircleShape),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = "G",
+                fontWeight = FontWeight.Black,
+                color = Color(0xFF4285F4),
+                fontSize = 13.sp
+              )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
-              text = tab.title,
-              style = MonospaceMicro,
-              color = if (isSelected) Color.White else SwissDark
+              text = "Continue with Google",
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.SemiBold,
+              letterSpacing = 0.2.sp
             )
           }
         }
@@ -175,325 +288,231 @@ fun SignInScreen(
 
       Spacer(modifier = Modifier.height(20.dp))
 
-      // Error Banner
-      AnimatedVisibility(visible = errorMessage != null) {
-        if (errorMessage != null) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .background(SwissCrimsonLight, RoundedCornerShape(6.dp))
-              .border(0.75.dp, SwissCrimson, RoundedCornerShape(6.dp))
-              .padding(12.dp)
-          ) {
-            Text(
-              text = errorMessage!!,
-              style = MaterialTheme.typography.bodySmall,
-              color = SwissCrimson,
-              fontWeight = FontWeight.Medium
+      // 2. Subtle 1px Divider
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(1.dp)
+            .background(SwissHairline)
+        )
+        Text(
+          text = "or continue with email",
+          style = MaterialTheme.typography.bodySmall,
+          color = SwissTextSecondary,
+          modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(1.dp)
+            .background(SwissHairline)
+        )
+      }
+
+      Spacer(modifier = Modifier.height(20.dp))
+
+      // 3. Email & Password Flow: Segmented Toggle [ Sign In ] | [ Create Account ]
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .background(Color(0xFFF3F3F1), RoundedCornerShape(6.dp))
+          .padding(3.dp)
+          .testTag("auth_mode_toggle")
+      ) {
+        val isSignInSelected = authMode == EmailAuthMode.SIGN_IN
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .background(
+              if (isSignInSelected) SwissDark else Color.Transparent,
+              RoundedCornerShape(4.dp)
             )
-          }
-          Spacer(modifier = Modifier.height(16.dp))
+            .clickable {
+              authMode = EmailAuthMode.SIGN_IN
+              errorMessage = null
+            }
+            .padding(vertical = 9.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = "Sign In",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isSignInSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSignInSelected) Color.White else SwissDark
+          )
+        }
+
+        val isCreateSelected = authMode == EmailAuthMode.CREATE_ACCOUNT
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .background(
+              if (isCreateSelected) SwissDark else Color.Transparent,
+              RoundedCornerShape(4.dp)
+            )
+            .clickable {
+              authMode = EmailAuthMode.CREATE_ACCOUNT
+              errorMessage = null
+            }
+            .padding(vertical = 9.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = "Create Account",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isCreateSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isCreateSelected) Color.White else SwissDark
+          )
         }
       }
 
-      // Tab Content
-      when (selectedTab) {
-        AuthTab.GOOGLE -> {
-          Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-          ) {
-            Text(
-              text = "Authenticate securely using Android Jetpack Credential Manager for verified cloud persistence.",
-              style = MaterialTheme.typography.bodySmall,
-              color = SwissTextSecondary,
-              textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-              lineHeight = 17.sp
-            )
+      Spacer(modifier = Modifier.height(18.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Button(
-              onClick = {
-                if (activity != null) {
-                  isLoading = true
-                  errorMessage = null
-                  AuthManager.signInWithGoogle(activity, scope) { success, err ->
-                    isLoading = false
-                    if (success) {
-                      onAuthenticated()
-                    } else if (err != null) {
-                      errorMessage = err
-                    }
-                  }
-                } else {
-                  errorMessage = "Activity context is unavailable."
-                }
-              },
-              enabled = !isLoading,
-              colors = ButtonDefaults.buttonColors(
-                containerColor = SwissDark,
-                contentColor = Color.White
-              ),
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("google_sign_in_button")
-            ) {
-              if (isLoading) {
-                CircularProgressIndicator(
-                  color = Color.White,
-                  modifier = Modifier.size(18.dp),
-                  strokeWidth = 2.dp
-                )
-              } else {
-                Row(
-                  verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                  Box(
-                    modifier = Modifier
-                      .size(20.dp)
-                      .background(Color.White, CircleShape),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Text(
-                      text = "G",
-                      fontWeight = FontWeight.Black,
-                      color = Color(0xFF4285F4),
-                      fontSize = 12.sp
-                    )
-                  }
-                  Text(
-                    text = "CONTINUE WITH GOOGLE",
-                    style = MonospaceMicro,
-                    letterSpacing = 1.sp
-                  )
-                }
-              }
-            }
-          }
-        }
-
-        AuthTab.EMAIL -> {
-          Column(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-              value = emailText,
-              onValueChange = { emailText = it },
-              label = { Text("Email Address") },
-              leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = SwissTextSecondary, modifier = Modifier.size(18.dp)) },
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-              singleLine = true,
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SwissDark,
-                unfocusedBorderColor = SwissBorder
-              ),
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedTextField(
-              value = passwordText,
-              onValueChange = { passwordText = it },
-              label = { Text("Password (min 6 chars)") },
-              leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = SwissTextSecondary, modifier = Modifier.size(18.dp)) },
-              visualTransformation = PasswordVisualTransformation(),
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-              singleLine = true,
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SwissDark,
-                unfocusedBorderColor = SwissBorder
-              ),
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-              onClick = {
-                isLoading = true
-                errorMessage = null
-                AuthManager.signInWithEmailPassword(
-                  emailText,
-                  passwordText,
-                  isSignUpMode,
-                  scope
-                ) { success, err ->
-                  isLoading = false
-                  if (success) {
-                    onAuthenticated()
-                  } else if (err != null) {
-                    errorMessage = err
-                  }
-                }
-              },
-              enabled = !isLoading,
-              colors = ButtonDefaults.buttonColors(
-                containerColor = SwissDark,
-                contentColor = Color.White
-              ),
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("email_auth_button")
-            ) {
-              if (isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-              } else {
-                Text(
-                  text = if (isSignUpMode) "REGISTER ACCOUNT" else "SIGN IN WITH EMAIL",
-                  style = MonospaceMicro,
-                  letterSpacing = 1.sp
-                )
-              }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            TextButton(
-              onClick = { isSignUpMode = !isSignUpMode },
-              modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-              Text(
-                text = if (isSignUpMode) "Already have an account? Sign In" else "Create a new account instead",
-                style = MaterialTheme.typography.bodySmall,
-                color = SwissDark,
-                fontWeight = FontWeight.Medium
+      // Optional "Your Name" Field for Create Account
+      AnimatedVisibility(visible = authMode == EmailAuthMode.CREATE_ACCOUNT) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+          OutlinedTextField(
+            value = nameText,
+            onValueChange = { nameText = it },
+            label = { Text("Your Name (Optional)") },
+            placeholder = { Text("e.g. Karan") },
+            leadingIcon = {
+              Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                tint = SwissTextSecondary,
+                modifier = Modifier.size(18.dp)
               )
-            }
-          }
+            },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = SwissDark,
+              unfocusedBorderColor = SwissBorder,
+              focusedLabelColor = SwissDark
+            ),
+            shape = RoundedCornerShape(6.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("auth_name_input")
+          )
+          Spacer(modifier = Modifier.height(12.dp))
         }
+      }
 
-        AuthTab.PHONE -> {
-          Column(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-              value = phoneText,
-              onValueChange = { phoneText = it },
-              label = { Text("Mobile Number (10 digits)") },
-              prefix = { Text("+91 ") },
-              leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = SwissTextSecondary, modifier = Modifier.size(18.dp)) },
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-              singleLine = true,
-              enabled = !isOtpSent,
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SwissDark,
-                unfocusedBorderColor = SwissBorder
-              ),
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier.fillMaxWidth()
+      // Email Address Field
+      OutlinedTextField(
+        value = emailText,
+        onValueChange = {
+          emailText = it
+          if (errorMessage != null) errorMessage = null
+        },
+        label = { Text("Email Address") },
+        placeholder = { Text("name@example.com") },
+        leadingIcon = {
+          Icon(
+            Icons.Default.Email,
+            contentDescription = null,
+            tint = SwissTextSecondary,
+            modifier = Modifier.size(18.dp)
+          )
+        },
+        keyboardOptions = KeyboardOptions(
+          keyboardType = KeyboardType.Email,
+          imeAction = ImeAction.Next
+        ),
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+          focusedBorderColor = SwissDark,
+          unfocusedBorderColor = SwissBorder,
+          focusedLabelColor = SwissDark
+        ),
+        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("auth_email_input")
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // Password Field with toggle visibility
+      OutlinedTextField(
+        value = passwordText,
+        onValueChange = {
+          passwordText = it
+          if (errorMessage != null) errorMessage = null
+        },
+        label = { Text("Password (min 6 characters)") },
+        leadingIcon = {
+          Icon(
+            Icons.Default.Lock,
+            contentDescription = null,
+            tint = SwissTextSecondary,
+            modifier = Modifier.size(18.dp)
+          )
+        },
+        trailingIcon = {
+          IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+            Icon(
+              imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+              contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+              tint = SwissTextSecondary,
+              modifier = Modifier.size(18.dp)
             )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (!isOtpSent) {
-              Button(
-                onClick = {
-                  if (activity != null && phoneText.length >= 10) {
-                    isLoading = true
-                    errorMessage = null
-                    AuthManager.sendPhoneOtp(
-                      activity = activity,
-                      phoneNumber = phoneText.trim(),
-                      onCodeSent = { vId ->
-                        isLoading = false
-                        verificationId = vId
-                        isOtpSent = true
-                      },
-                      onError = { err ->
-                        isLoading = false
-                        errorMessage = err
-                      }
-                    )
-                  } else {
-                    errorMessage = "Please enter a valid 10-digit mobile number."
-                  }
-                },
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = SwissDark,
-                  contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(50.dp)
-                  .testTag("send_otp_button")
-              ) {
-                if (isLoading) {
-                  CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                  Text("TRANSMIT OTP", style = MonospaceMicro, letterSpacing = 1.sp)
-                }
-              }
-            } else {
-              OutlinedTextField(
-                value = otpText,
-                onValueChange = { otpText = it },
-                label = { Text("6-Digit OTP Code") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = SwissDark,
-                  unfocusedBorderColor = SwissBorder
-                ),
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth()
-              )
-
-              Spacer(modifier = Modifier.height(10.dp))
-
-              Button(
-                onClick = {
-                  val vId = verificationId
-                  if (vId != null && otpText.length >= 6) {
-                    isLoading = true
-                    errorMessage = null
-                    AuthManager.verifyPhoneOtp(vId, otpText.trim(), scope) { success, err ->
-                      isLoading = false
-                      if (success) {
-                        onAuthenticated()
-                      } else if (err != null) {
-                        errorMessage = err
-                      }
-                    }
-                  } else {
-                    errorMessage = "Please enter the 6-digit verification code."
-                  }
-                },
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = SwissCrimson,
-                  contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(50.dp)
-                  .testTag("verify_otp_button")
-              ) {
-                if (isLoading) {
-                  CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                  Text("VERIFY & AUTHENTICATE", style = MonospaceMicro, letterSpacing = 1.sp)
-                }
-              }
-
-              TextButton(
-                onClick = {
-                  isOtpSent = false
-                  otpText = ""
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-              ) {
-                Text("Change Mobile Number", color = SwissTextSecondary, style = MaterialTheme.typography.bodySmall)
-              }
-            }
           }
+        },
+        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(
+          keyboardType = KeyboardType.Password,
+          imeAction = ImeAction.Done
+        ),
+        keyboardActions = KeyboardActions(
+          onDone = { submitEmailAuth() }
+        ),
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+          focusedBorderColor = SwissDark,
+          unfocusedBorderColor = SwissBorder,
+          focusedLabelColor = SwissDark
+        ),
+        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("auth_password_input")
+      )
+
+      Spacer(modifier = Modifier.height(18.dp))
+
+      // Primary Crimson Red Button: Sign In or Create Account
+      Button(
+        onClick = submitEmailAuth,
+        enabled = !isAnyLoading,
+        colors = ButtonDefaults.buttonColors(
+          containerColor = SwissCrimson,
+          contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(6.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(50.dp)
+          .testTag("email_auth_submit_button")
+      ) {
+        if (isLoadingEmail) {
+          CircularProgressIndicator(
+            color = Color.White,
+            modifier = Modifier.size(18.dp),
+            strokeWidth = 2.dp
+          )
+        } else {
+          Text(
+            text = if (authMode == EmailAuthMode.CREATE_ACCOUNT) "Create Account" else "Sign In",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+          )
         }
       }
 
@@ -504,14 +523,24 @@ fun SignInScreen(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Box(modifier = Modifier.weight(1f).height(0.75.dp).background(SwissHairline))
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(1.dp)
+            .background(SwissHairline)
+        )
         Text(
           text = "OR",
           style = MonospaceMicro,
           color = SwissTextTertiary,
           modifier = Modifier.padding(horizontal = 12.dp)
         )
-        Box(modifier = Modifier.weight(1f).height(0.75.dp).background(SwissHairline))
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(1.dp)
+            .background(SwissHairline)
+        )
       }
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -519,6 +548,7 @@ fun SignInScreen(
       // Continue as Guest Button (100% Offline Local Ledger)
       Button(
         onClick = onContinueAsGuest,
+        enabled = !isAnyLoading,
         colors = ButtonDefaults.buttonColors(
           containerColor = MaterialTheme.colorScheme.surface,
           contentColor = SwissDark

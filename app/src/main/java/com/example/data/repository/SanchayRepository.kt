@@ -73,21 +73,23 @@ class SanchayRepository(private val dao: SanchayDao) {
         isCompleted = false
       )
     }
-    val todayEpoch = LocalDate.now().toEpochDay()
-    val rawDaysRemaining = goal.deadlineEpochDay - todayEpoch
-    val isExpired = rawDaysRemaining <= 0
-    val remainingAmount = (goal.targetAmount - goal.savedAmount).coerceAtLeast(0.0)
+    val currentMillis = System.currentTimeMillis()
+    val deadlineMillis = goal.deadlineEpochDay * 86400000L
+    val remainingMillis = deadlineMillis - currentMillis
+    val isExpired = remainingMillis <= 0
+    val remainingDays = max(1L, remainingMillis / (1000L * 60L * 60L * 24L))
+    val remainingDeficit = max(0.0, goal.targetAmount - goal.savedAmount)
     val isCompleted = goal.targetAmount > 0 && goal.savedAmount >= goal.targetAmount
 
-    val daily = if (rawDaysRemaining > 0 && !isCompleted) remainingAmount / rawDaysRemaining.toDouble() else 0.0
-    val weekly = daily * 7.0
-    val monthly = daily * 30.0
+    val requiredDaily = if (!isExpired && !isCompleted) remainingDeficit / remainingDays.toDouble() else 0.0
+    val requiredWeekly = requiredDaily * 7.0
+    val requiredMonthly = requiredDaily * 30.0
 
     return PacingInfo(
-      dailyPace = daily,
-      weeklyPace = weekly,
-      monthlyPace = monthly,
-      daysRemaining = max(0L, rawDaysRemaining),
+      dailyPace = requiredDaily,
+      weeklyPace = requiredWeekly,
+      monthlyPace = requiredMonthly,
+      daysRemaining = if (isExpired) 0L else remainingDays,
       isExpired = isExpired,
       isCompleted = isCompleted
     )
